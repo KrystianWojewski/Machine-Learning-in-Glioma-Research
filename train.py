@@ -336,9 +336,9 @@ Args:
 """
 
 if __name__ == "__main__":
-    csv_file = KPUU_FILE
-    target_col = 'Kpuu'
-    model_name = 'Kpuu_model'
+    csv_file = KPUU_LOG_FILE
+    target_col = 'pKpuu'
+    model_name = 'pKpuu_model'
 
     # Ustaw folder zapisu
     MODEL_DIR = os.path.join(
