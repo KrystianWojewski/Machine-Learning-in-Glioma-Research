@@ -12,14 +12,13 @@ from rdkit.Chem import Draw
 from torch_geometric.utils import to_networkx
 
 from graph_utils import smiles_to_graph
-from config import DATA_DIR
 
 
 def visualize_molecular_graph(smiles, save_path=None, figsize=(12, 10)):
     """
     Tworzy dwa widoki tej samej cząsteczki:
     1. Tradycyjny wzór chemiczny (RDKit)
-    2. Graf molekularny (NetworkX) – taki, jaki widzi model
+    2. Graf molekularny (NetworkX) - taki, jaki widzi model
 
     Args:
         smiles: SMILES cząsteczki
