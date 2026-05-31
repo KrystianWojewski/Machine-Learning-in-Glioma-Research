@@ -239,16 +239,12 @@ def get_model(model_type, descriptor_dim=None):
                          f"Dostępne: GCN, GIN, GraphDenseNet, DescriptorOnly, Hybrid")
 
 
-def train(args, data_type, transform):
+def train(args):
     """
     Główna funkcja trenowania.
     """
     # Złóż nazwę folderu
-    folder_name = f"{args.model}_{data_type}_{transform}_E{args.epochs}_LR{args.lr}_BS{args.batch_size}"
-
-    # Dodaj early stopping do nazwy jeśli nie jest domyślne
-    if args.early_stop != 50:
-        folder_name += f"_ES{args.early_stop}"
+    folder_name = f"{args.model}_{args.target_col}_E{args.epochs}_LR{args.lr}_BS{args.bs}"
 
     save_dir = os.path.join('results', folder_name)
     os.makedirs(save_dir, exist_ok=True)
@@ -257,15 +253,13 @@ def train(args, data_type, transform):
     print(f"Trenowanie modelu {args.model} dla {args.target_col}")
     print(f"{'='*60}")
     print(f"\nParametry trenowania:")
-    print(f"  Plik danych: {args.csv_file}")
-    print(f"  Typ danych: {data_type}")
-    print(f"  Transformacja: {transform}")
-    print(f"  Cel predykcji: {args.target_col}")
+    print(f"  Plik danych: {args.csv}")
+    print(f"  Typ danych: {args.target_col}")
     print(f"  Typ modelu: {args.model}")
     print(f"  Liczba epok: {args.epochs}")
     print(f"  Learning rate: {args.lr}")
-    print(f"  Batch size: {args.batch_size}")
-    print(f"  Early stopping: {args.early_stop}")
+    print(f"  Batch size: {args.bs}")
+    print(f"  Early stopping: {args.es}")
     print(f"  Folder wyników: {save_dir}")
 
     # Przygotowanie danych - deskryptory tylko dla modeli, które ich potrzebują
@@ -273,11 +267,10 @@ def train(args, data_type, transform):
                                      'Hybrid', 'hybrid']
 
     train_loader, val_loader, test_loader = create_dataloaders(
-        args.csv_file, target_col=args.target_col, batch_size=args.batch_size,
+        args.csv, target_col=args.target_col, batch_size=args.bs,
         use_descriptors=use_descriptors
     )
 
-    # Inicjalizacja modelu
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"\nUżywam urządzenia: {device}")
 
@@ -293,7 +286,7 @@ def train(args, data_type, transform):
         optimizer, mode='min', factor=0.5, patience=20
     )
     criterion = nn.MSELoss()
-    early_stopping = EarlyStopping(patience=args.early_stop)
+    early_stopping = EarlyStopping(patience=args.es)
 
     print("\nRozpoczynam trening...")
 
@@ -373,8 +366,8 @@ def train(args, data_type, transform):
         'target_col': args.target_col,
         'epochs': args.epochs,
         'learning_rate': args.lr,
-        'batch_size': args.batch_size,
-        'early_stop': args.early_stop,
+        'batch_size': args.bs,
+        'early_stop': args.es,
         'test_loss': test_loss,
         'test_rmse': test_rmse,
         'test_mae': test_mae,
@@ -393,7 +386,7 @@ def train(args, data_type, transform):
     return model, history, (test_rmse, test_mae, test_r2)
 
 
-def compare_models(args, data_type, transform):
+def train_all_models(args):
     """
     Porównuje wszystkie modele z tymi samymi parametrami.
     Rysuje zaawansowane wykresy porównawcze.
@@ -403,33 +396,32 @@ def compare_models(args, data_type, transform):
     results = {}
     histories = {}
 
-    print("\n" + "="*70)
+    print("\n" + "="*60)
     print("PORÓWNANIE WSZYSTKICH MODELI")
-    print("="*70)
+    print("="*60)
     print(f"\nParametry:")
-    print(f"  Plik danych: {args.csv_file}")
-    print(f"  Cel predykcji: {args.target_col}")
+    print(f"  Plik danych: {args.csv}")
+    print(f"  Typ danych: {args.target_col}")
     print(f"  Liczba epok: {args.epochs}")
     print(f"  Learning rate: {args.lr}")
-    print(f"  Batch size: {args.batch_size}")
+    print(f"  Batch size: {args.bs}")
     print(f"  Testowane modele: {', '.join(models_to_test)}")
 
     for model_type in models_to_test:
-        print("\n" + "="*50)
+        print("\n" + "="*60)
         print(f"Trenowanie: {model_type}")
-        print("="*50)
+        print("="*60)
 
-        # Stwórz nowy args dla każdego modelu
         model_args = argparse.Namespace(
-            csv_file=args.csv_file,
+            csv=args.csv,
             target_col=args.target_col,
             model=model_type,
             epochs=args.epochs,
             lr=args.lr,
-            batch_size=args.batch_size,
-            early_stop=args.early_stop
+            bs=args.bs,
+            es=args.es
         )
-        _, history, metrics = train(model_args, data_type, transform)
+        _, history, metrics = train(model_args)
         results[model_type] = {
             'rmse': metrics[0],
             'mae': metrics[1],
@@ -437,13 +429,8 @@ def compare_models(args, data_type, transform):
         }
         histories[model_type] = history
 
-    # ========================================================================
-    # Zaawansowane wykresy porównawcze
-    # ========================================================================
-
-    # 1. Wykres słupkowy
+    # Wykresy porównawcze
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
     model_names = list(results.keys())
     colors = ['#2E86AB', '#A23B72', '#F18F01', '#1B998B', '#E84855']
 
@@ -482,13 +469,12 @@ def compare_models(args, data_type, transform):
                      0.01, f'{val:.4f}', ha='center', fontsize=9)
 
     plt.tight_layout()
-    plt.savefig(os.path.join('results', f'all_models_comparison_{data_type}_{transform}.png'),
+    plt.savefig(os.path.join('results', f'all_models_comparison_{args.target_col}.png'),
                 dpi=150, bbox_inches='tight')
     plt.show()
 
-    # 2. Krzywe uczenia się (wszystkie modele na jednym wykresie)
+    # Krzywe uczenia się
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
     for i, (name, history) in enumerate(histories.items()):
         epochs = range(1, len(history['val_loss']) + 1)
         axes[0].plot(epochs, history['val_loss'], label=name,
@@ -511,22 +497,19 @@ def compare_models(args, data_type, transform):
 
     plt.tight_layout()
     plt.savefig(os.path.join(
-        'results', f'all_models_learning_curves_{data_type}_{transform}.png'), dpi=150, bbox_inches='tight')
+        'results', f'all_models_learning_curves_{args.target_col}.png'), dpi=150, bbox_inches='tight')
     plt.show()
 
-    # 3. Zapisz tabelę porównawczą
-    comparison_df = pd.DataFrame([
-        {'Model': name, 'RMSE': res['rmse'],
-            'MAE': res['mae'], 'R²': res['r2']}
-        for name, res in results.items()
-    ])
+    # Zapisz tabelę
+    comparison_df = pd.DataFrame([{'Model': name, 'RMSE': res['rmse'],
+                                 'MAE': res['mae'], 'R²': res['r2']} for name, res in results.items()])
     comparison_df = comparison_df.sort_values('R²', ascending=False)
     comparison_df.to_csv(os.path.join(
-        'results', f'all_models_comparison_{data_type}_{transform}.csv'), index=False)
+        'results', f'all_models_comparison_{args.target_col}.csv'), index=False)
 
-    print("\n" + "="*70)
+    print("\n" + "="*60)
     print("PODSUMOWANIE PORÓWNANIA MODELI")
-    print("="*70)
+    print("="*60)
     print(comparison_df.to_string(index=False))
 
     return results, histories
@@ -536,63 +519,43 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Trenowanie modeli do predykcji Kp/Kpuu')
 
-    # Argumenty danych
-    parser.add_argument('--csv_file', type=str, default='data/raw/train_kpuu_log.csv',
+    # Argumenty dla standardowego treningu
+    parser.add_argument('--csv', type=str, default='data/raw/train_kpuu_log.csv',
                         help='Ścieżka do pliku CSV z danymi')
     parser.add_argument('--target_col', type=str, default='pKpuu',
                         choices=['Kpuu', 'Kp', 'pKpuu', 'pKp'],
                         help='Kolumna do przewidzenia')
-
-    # Argumenty modelu
     parser.add_argument('--model', type=str, default='GraphDenseNet',
                         choices=['GCN', 'GIN', 'GraphDenseNet',
-                                 'DescriptorOnly', 'Hybrid', 'Compare'],
-                        help='Typ modelu (lub "Compare" do porównania wszystkich)')
-
-    # Argumenty trenowania
+                                 'DescriptorOnly', 'Hybrid', 'All'],
+                        help='Typ modelu')
     parser.add_argument('--epochs', type=int, default=200,
                         help='Maksymalna liczba epok')
     parser.add_argument('--lr', type=float, default=0.0005,
                         help='Learning rate')
-    parser.add_argument('--batch_size', type=int, default=32,
-                        help='Batch size')
-    parser.add_argument('--early_stop', type=int, default=50,
+    parser.add_argument('--bs', type=int,
+                        default=32, help='Batch size')
+    parser.add_argument('--es', type=int, default=50,
                         help='Cierpliwość early stopping')
 
     args = parser.parse_args()
 
-    # Wyciągnij nazwę pliku CSV (bez rozszerzenia i ścieżki)
-    csv_filename = os.path.splitext(os.path.basename(args.csv_file))[0]
-
-    # Przygotuj oznaczenie typu danych
-    if 'kpuu' in csv_filename.lower():
-        data_type = 'Kpuu'
-    elif 'kp' in csv_filename.lower():
-        data_type = 'KP'
-    else:
-        data_type = 'data'
-
-    # Dodaj informację o transformacji logarytmicznej
-    if args.target_col in ['pKpuu', 'pKp']:
-        transform = 'log'
-    else:
-        transform = 'raw'
-
     # Uruchom odpowiednią funkcję
-    if args.model == 'Compare':
-        compare_models(args, data_type, transform)
+    if args.model == 'All':
+        train_all_models(args)
     else:
-        train(args, data_type, transform)
+        train(args)
 
 """
 Args:
---model GCN/GIN/GraphDenseNet/DescriptorOnly/Hybrid/Compare
---epochs
---lr (learning rate)
---batch_size
---early_stop (patience for early stopping)
---csv_file data/raw/train_kpuu_log.csv (ścieżka do pliku CSV)
---target_col (Kpuu/Kp/pKpuu/pKp)
+--model GCN/GIN/GraphDenseNet/DescriptorOnly/Hybrid/All
+--csv data/raw/train_kpuu.csv
+--target_col pKpuu
+--epochs 200
+--lr (learning rate) 0.0005
+--bs (batch size) 32
+--es (early stopping) 50
 
-py train.py --model GCN --epochs 200 --lr 0.0005 --batch_size 32 --early_stop 50 --csv_file data/raw/train_kpuu_log.csv --target_col pKpuu
+train.py --model GraphDenseNet --csv data/raw/train_kpuu_log.csv --target_col pKpuu --epochs 200 --lr 0.0005 --bs 32 --es 50
+
 """
