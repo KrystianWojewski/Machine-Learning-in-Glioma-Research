@@ -1,2 +1,2 @@
 pretrained_model,model,target_col,epochs,learning_rate,batch_size,early_stop,freeze_ratio,test_loss,test_rmse,test_mae,test_r2,best_epoch
-results\GraphDenseNet_pKp_E200_LR0.0005_BS32\best_model.pt,GraphDenseNet,pKpuu,200,0.0001,32,50,0.5,0.23320630534241596,0.5219462705466512,0.372543567629612,0.31911144430203786,151
+results\GraphDenseNet_pKp_E200_LR0.0005_BS32\best_model.pt,GraphDenseNet,pKpuu,200,0.0001,32,50,0.5,0.46456589301427204,0.6820186891012735,0.51582316313135,0.013142553134919188,158

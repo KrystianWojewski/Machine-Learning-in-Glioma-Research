@@ -8,13 +8,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from data_loader import create_dataloaders
-from train import get_model, train_epoch, evaluate, EarlyStopping, plot_learning_curves, plot_predictions_vs_true
+from plot_utils import PlotGenerator
+from train import get_model, train_epoch, evaluate, EarlyStopping
 
 # Ustaw styl wykresów
-try:
-    plt.style.use('seaborn-v0_8-darkgrid')
-except:
-    plt.style.use('ggplot')
+plt.style.use('ggplot')
 
 
 def freeze_layers_by_ratio(model, freeze_ratio=0.5):
@@ -134,7 +132,7 @@ def finetune(args):
             torch.save(model.state_dict(), os.path.join(
                 save_dir, 'best_model.pt'))
 
-        early_stopping(val_loss)
+        early_stopping(val_loss, epoch+1)
         if early_stopping.early_stop:
             print(f"\nEarly stopping w epoce {epoch+1}")
             break
@@ -162,6 +160,10 @@ def finetune(args):
     })
     results_df.to_csv(os.path.join(save_dir, 'test_results.csv'), index=False)
 
+    history_df = pd.DataFrame(history)
+    history_df.to_csv(os.path.join(
+        save_dir, 'training_history.csv'), index=False)
+
     # Zapisz metryki
     metrics_df = pd.DataFrame([{
         'pretrained_model': args.model_path,
@@ -181,10 +183,13 @@ def finetune(args):
     }])
     metrics_df.to_csv(os.path.join(save_dir, 'metrics.csv'), index=False)
 
-    plot_learning_curves(
-        history, f"{model_name}_FineTuned", args.ft_target, save_dir)
-    plot_predictions_vs_true(test_true, test_pred,
-                             f"{model_name}_FineTuned", args.ft_target, save_dir)
+    plotter = PlotGenerator(save_dir=save_dir)
+    plotter.plot_learning_curves(history, model_name, args.ft_target)
+    plotter.plot_predictions_vs_true(
+        test_true, test_pred, model_name, args.ft_target)
+    plotter.plot_residuals(test_true, test_pred, model_name, args.ft_target)
+    plotter.plot_errors_vs_target(
+        test_true, test_pred, model_name, args.ft_target)
 
     print(f"\nWyniki zapisane w: {save_dir}")
 
