@@ -48,7 +48,7 @@ def finetune(args):
     model_name, data_type, epochs, lr, bs = args.model_path.split(
         '\\')[-2].split('_')
 
-    folder_name = f"TL_{model_name}_{data_type}_to_{args.ft_target}_E{epochs}to{args.epochs_ft}_LR{lr}to{args.lr_ft}_BS{bs}to{args.bs_ft}_FR{args.fr}"
+    folder_name = f"TL_{model_name}_{data_type}_to_{args.ft_target}_{epochs}to{args.epochs_ft}_{lr}to{args.lr_ft}_{bs}to{args.bs_ft}_{args.fr}"
 
     save_dir = os.path.join('results', folder_name)
     os.makedirs(save_dir, exist_ok=True)

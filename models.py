@@ -139,7 +139,7 @@ class GINModel(nn.Module):
 
 
 # ============================================================================
-# 3. GraphDenseNet (uproszczona, działająca wersja)
+# 3. GraphDenseNet (uproszczona, działająca wersja, Residual GCN)
 # ============================================================================
 
 class GraphDenseNetModel(nn.Module):

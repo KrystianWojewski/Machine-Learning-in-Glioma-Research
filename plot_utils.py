@@ -300,44 +300,53 @@ class PlotGenerator:
 
         return fig, axes
 
-    def plot_kp_vs_kpuu(self, df_kp, df_kpuu, save_name='kp_vs_kpuu'):
+    def plot_pkp_vs_pkpuu(self, df_kp_log, df_kpuu_log, save_name='pkp_vs_pkpuu'):
         """
-        Rysuje zależność między Kp a Kpuu.
+        Rysuje zależność między pKp a pKpuu (wersje logarytmiczne).
 
         Args:
-            df_kp: DataFrame z kolumnami 'SMILES' i 'Kp'
-            df_kpuu: DataFrame z kolumnami 'SMILES' i 'Kpuu'
+            df_kp_log: DataFrame z kolumnami 'SMILES' i 'pKp'
+            df_kpuu_log: DataFrame z kolumnami 'SMILES' i 'pKpuu'
             save_name: nazwa pliku do zapisu
         """
-        df_merged = pd.merge(df_kp, df_kpuu, on='SMILES', how='inner')
+        # Połącz dane na podstawie SMILES
+        df_merged = pd.merge(df_kp_log, df_kpuu_log, on='SMILES', how='inner')
 
         if len(df_merged) == 0:
-            print("Brak wspólnych związków między Kp a Kpuu")
+            print("Brak wspólnych związków między pKp a pKpuu")
             return None, None
 
         fig, ax = plt.subplots(figsize=(8, 8))
 
-        ax.scatter(df_merged['Kp'], df_merged['Kpuu'], alpha=0.6, s=50,
+        # Punkty
+        ax.scatter(df_merged['pKp'], df_merged['pKpuu'], alpha=0.6, s=50,
                    c='steelblue', edgecolors='black', linewidth=0.5)
 
-        min_val = min(df_merged['Kp'].min(), df_merged['Kpuu'].min())
-        max_val = max(df_merged['Kp'].max(), df_merged['Kpuu'].max())
+        # Linia y = x
+        min_val = min(df_merged['pKp'].min(), df_merged['pKpuu'].min())
+        max_val = max(df_merged['pKp'].max(), df_merged['pKpuu'].max())
         ax.plot([min_val, max_val], [min_val, max_val],
                 'r--', linewidth=2, label='y = x')
 
-        z = np.polyfit(df_merged['Kp'], df_merged['Kpuu'], 1)
+        # Linia regresji
+        z = np.polyfit(df_merged['pKp'], df_merged['pKpuu'], 1)
         p = np.poly1d(z)
         ax.plot([min_val, max_val], p([min_val, max_val]), 'g-', linewidth=2,
                 label=f'Regresja (y = {z[0]:.2f}x + {z[1]:.2f})')
 
-        correlation = df_merged['Kp'].corr(df_merged['Kpuu'])
+        # Korelacja
+        correlation = df_merged['pKp'].corr(df_merged['pKpuu'])
 
-        ax.set_xlabel('Kp (całkowity współczynnik)', fontsize=12)
-        ax.set_ylabel('Kpuu (współczynnik dla frakcji wolnej)', fontsize=12)
+        # Ustawienia osi
+        ax.set_xlabel('pKp = -log₁₀(Kp)', fontsize=12)
+        ax.set_ylabel('pKpuu = -log₁₀(Kpuu)', fontsize=12)
         ax.set_title(
-            f'Zależność między Kp a Kpuu\n(korelacja = {correlation:.3f})', fontsize=12)
+            f'Zależność między pKp a pKpuu\n(korelacja = {correlation:.3f})', fontsize=12)
         ax.legend(fontsize=10)
         ax.grid(True, alpha=0.3)
+        ax.set_aspect('equal')
+
+        # Dodaj informację o liczbie punktów
         ax.text(0.05, 0.95, f'n = {len(df_merged)} związków', transform=ax.transAxes,
                 fontsize=10, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
@@ -345,6 +354,230 @@ class PlotGenerator:
         self._save_plot(f'{save_name}.png')
 
         return fig, ax
+
+    def plot_atom_importance(self, smiles, importance, mol, save_name=None):
+        """
+        Rysuje wykres ważności atomów dla pojedynczej cząsteczki.
+
+        Args:
+            smiles: SMILES cząsteczki (tylko do tytułu)
+            importance: lista/tablica ważności dla każdego atomu
+            mol: obiekt RDKit Mol (do pobrania symboli atomów)
+            save_name: nazwa pliku do zapisu
+        """
+        if mol is None:
+            print("⚠️ Nie można wyświetlić ważności atomów – brak obiektu mol")
+            return None, None
+
+        # Przygotuj dane
+        n_atoms = len(importance)
+        atom_indices = list(range(n_atoms))
+        atom_symbols = [mol.GetAtomWithIdx(
+            i).GetSymbol() for i in range(n_atoms)]
+
+        # Kolory: zielony = dodatnia ważność (zwiększa przenikanie),
+        #        czerwony = ujemna ważność (zmniejsza przenikanie)
+        colors = ['green' if imp > 0 else 'red' for imp in importance]
+
+        fig, ax = plt.subplots(figsize=(14, 6))
+
+        # Wykres słupkowy
+        bars = ax.bar(atom_indices, importance, color=colors,
+                      alpha=0.7, edgecolor='black')
+
+        # Dodaj etykiety symboli atomów nad słupkami
+        for i, (bar, symbol, imp) in enumerate(zip(bars, atom_symbols, importance)):
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + (0.02 if imp > 0 else -0.05),
+                    symbol, ha='center', va='bottom' if imp > 0 else 'top',
+                    fontsize=9, fontweight='bold')
+
+        ax.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
+        ax.set_xlabel('Indeks atomu', fontsize=12)
+        ax.set_ylabel('Ważność atomu (Integrated Gradients)', fontsize=12)
+        ax.set_title(
+            f'Ważność atomów dla cząsteczki\n{smiles[:60]}...', fontsize=12)
+        ax.grid(True, alpha=0.3, axis='y')
+
+        # Dodaj adnotację o kolorach
+        ax.text(0.98, 0.02, 'Kolor: zielony = zwiększa przenikanie\n       czerwony = zmniejsza przenikanie',
+                transform=ax.transAxes, fontsize=9, verticalalignment='bottom',
+                horizontalalignment='right', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+        plt.tight_layout()
+
+        if save_name is None:
+            save_name = f'atom_importance'
+        self._save_plot(f'{save_name}.png')
+
+        return fig, ax
+
+    def plot_atom_importance_comparison(self, results, save_name='atom_importance_comparison'):
+        """
+        Rysuje porównanie ważności atomów dla wielu cząsteczek.
+
+        Args:
+            results: lista słowników z kluczami 'smiles', 'mol', 'importance', 'chembl_id', 'true_pkpuu', 'pred_pkpuu'
+            save_name: nazwa pliku do zapisu
+        """
+        n_molecules = len(results)
+        if n_molecules == 0:
+            print("⚠️ Brak danych do porównania")
+            return None, None
+
+        # Wybierz maksymalną liczbę atomów dla spójnej siatki
+        max_atoms = max([len(r['importance']) for r in results])
+
+        fig, axes = plt.subplots(n_molecules, 1, figsize=(16, 3 * n_molecules))
+        if n_molecules == 1:
+            axes = [axes]
+
+        for i, res in enumerate(results):
+            importance = res['importance']
+            mol = res['mol']
+            chembl_id = res.get('chembl_id', f'Cząsteczka {i+1}')
+            true_val = res.get('true_pkpuu', 0)
+            pred_val = res.get('pred_pkpuu', 0)
+
+            n_atoms = len(importance)
+            atom_indices = list(range(n_atoms))
+            atom_symbols = [mol.GetAtomWithIdx(
+                i).GetSymbol() for i in range(n_atoms)]
+
+            colors = ['green' if imp > 0 else 'red' for imp in importance]
+
+            axes[i].bar(atom_indices, importance, color=colors,
+                        alpha=0.7, edgecolor='black')
+            axes[i].axhline(y=0, color='black', linestyle='-', linewidth=0.5)
+            axes[i].set_ylabel(
+                f'{chembl_id}\nWa\u017cno\u015b\u0107', fontsize=9)
+            axes[i].set_xlim(-0.5, max_atoms - 0.5)
+            axes[i].set_title(f'pKpuu: true={true_val:.2f}, pred={pred_val:.2f}, błąd={abs(true_val-pred_val):.2f}',
+                              fontsize=9)
+            axes[i].grid(True, alpha=0.3, axis='y')
+
+            # Dodaj etykiety atomów tylko dla co drugiego atomu (żeby nie było tłoczno)
+            for j, (symbol, imp) in enumerate(zip(atom_symbols, importance)):
+                if j % 2 == 0:  # co drugi atom
+                    axes[i].text(j, imp + (0.02 if imp > 0 else -0.03),
+                                 symbol, ha='center', va='bottom' if imp > 0 else 'top',
+                                 fontsize=7)
+
+        axes[-1].set_xlabel('Indeks atomu', fontsize=12)
+        plt.suptitle('Porównanie ważności atomów dla wybranych cząsteczek',
+                     fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        self._save_plot(f'{save_name}.png')
+
+        return fig, axes
+
+    def plot_top_atoms_summary(self, results, top_k=5, save_name='top_atoms_summary'):
+        """
+        Rysuje zbiorczy wykres najważniejszych atomów ze wszystkich cząsteczek.
+
+        Args:
+            results: lista słowników z kluczami 'mol', 'importance'
+            top_k: liczba najważniejszych atomów do uwzględnienia z każdej cząsteczki
+            save_name: nazwa pliku do zapisu
+        """
+        from collections import Counter
+
+        # Zbierz wszystkie najważniejsze atomy
+        atom_counter = Counter()
+
+        for res in results:
+            mol = res['mol']
+            importance = res['importance']
+
+            # Znajdź top_k najważniejszych atomów
+            top_indices = np.argsort(importance)[-top_k:][::-1]
+
+            for idx in top_indices:
+                atom_symbol = mol.GetAtomWithIdx(int(idx)).GetSymbol()
+                atom_counter[atom_symbol] += 1
+
+        # Przygotuj dane do wykresu
+        atom_types = list(atom_counter.keys())
+        counts = list(atom_counter.values())
+
+        # Posortuj malejąco
+        sorted_idx = np.argsort(counts)[::-1]
+        atom_types = [atom_types[i] for i in sorted_idx]
+        counts = [counts[i] for i in sorted_idx]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        bars = ax.bar(atom_types, counts, color='steelblue',
+                      alpha=0.7, edgecolor='black')
+        ax.set_xlabel('Typ atomu', fontsize=12)
+        ax.set_ylabel(
+            f'Liczba wystąpień wśród {top_k} najważniejszych atomów', fontsize=12)
+        ax.set_title(
+            f'Najczęściej występujące ważne atomy\n(na podstawie {len(results)} cząsteczek)', fontsize=12)
+        ax.grid(True, alpha=0.3, axis='y')
+
+        # Dodaj wartości na słupkach
+        for bar, val in zip(bars, counts):
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
+                    str(val), ha='center', va='bottom', fontsize=10)
+
+        plt.tight_layout()
+        self._save_plot(f'{save_name}.png')
+
+        return fig, ax
+
+    def plot_importance_vs_property(self, results, property_name='true_pkpuu', save_name='importance_vs_property'):
+        """
+        Rysuje zależność między średnią/maksymalną ważnością atomów a właściwością cząsteczki.
+
+        Args:
+            results: lista słowników z kluczami 'importance', property_name
+            property_name: nazwa właściwości do porównania (np. 'true_pkpuu', 'pred_pkpuu')
+            save_name: nazwa pliku do zapisu
+        """
+        mean_importances = [np.mean(r['importance']) for r in results]
+        max_importances = [np.max(r['importance']) for r in results]
+        property_values = [r[property_name] for r in results]
+
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+        # Średnia ważność vs właściwość
+        axes[0].scatter(property_values, mean_importances, alpha=0.6, s=50,
+                        c='steelblue', edgecolors='black', linewidth=0.5)
+        axes[0].set_xlabel(property_name, fontsize=12)
+        axes[0].set_ylabel('Średnia ważność atomów', fontsize=12)
+        axes[0].set_title(
+            'Średnia ważność atomów a właściwość cząsteczki', fontsize=12)
+        axes[0].grid(True, alpha=0.3)
+
+        # Dodaj linię trendu
+        z = np.polyfit(property_values, mean_importances, 1)
+        p = np.poly1d(z)
+        x_line = np.array([min(property_values), max(property_values)])
+        axes[0].plot(x_line, p(x_line), 'r--', linewidth=1.5,
+                     label=f'Trend (r = {np.corrcoef(property_values, mean_importances)[0, 1]:.3f})')
+        axes[0].legend()
+
+        # Maksymalna ważność vs właściwość
+        axes[1].scatter(property_values, max_importances, alpha=0.6, s=50,
+                        c='steelblue', edgecolors='black', linewidth=0.5)
+        axes[1].set_xlabel(property_name, fontsize=12)
+        axes[1].set_ylabel('Maksymalna ważność atomów', fontsize=12)
+        axes[1].set_title(
+            'Maksymalna ważność atomów a właściwość cząsteczki', fontsize=12)
+        axes[1].grid(True, alpha=0.3)
+
+        z = np.polyfit(property_values, max_importances, 1)
+        p = np.poly1d(z)
+        axes[1].plot(x_line, p(x_line), 'r--', linewidth=1.5,
+                     label=f'Trend (r = {np.corrcoef(property_values, max_importances)[0, 1]:.3f})')
+        axes[1].legend()
+
+        plt.suptitle('Zależność między ważnością atomów a wartością pKpuu',
+                     fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        self._save_plot(f'{save_name}.png')
+
+        return fig, axes
 
 
 # ============================================================================
