@@ -537,7 +537,7 @@ if __name__ == "__main__":
     model.eval()
 
     # Utwórz katalog zapisu
-    save_dir = f'results/{args.model_path.split("/")[1]}/interpretability'
+    save_dir = f'results/{args.model_path.split("\\")[1]}/interpretability'
     os.makedirs(save_dir, exist_ok=True)
     print(f"Katalog zapisu: {save_dir}")
 
