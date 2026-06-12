@@ -107,7 +107,7 @@ def collate_fn(batch):
 
 def create_dataloaders(csv_file, target_col='Kpuu', batch_size=32,
                        train_ratio=0.7, val_ratio=0.15, test_ratio=0.15,
-                       use_descriptors=True, random_state=42):
+                       use_descriptors=True, random_state=None):
     """
     Tworzy DataLoadery dla treningu, walidacji i testu.
 

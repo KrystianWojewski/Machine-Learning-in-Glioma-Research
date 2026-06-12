@@ -24,6 +24,17 @@ from plot_utils import PlotGenerator
 plt.style.use('seaborn-v0_8-darkgrid')
 
 
+def set_seed(seed):
+    """Ustawia seed."""
+    import random
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
 class EarlyStopping:
     """Zatrzymuje trenowanie, gdy model przestaje się poprawiać."""
 
@@ -162,8 +173,10 @@ def train(args):
     """
     Główna funkcja trenowania.
     """
+    # Ustaw seed
+    set_seed(args.seed)
     # Złóż nazwę folderu
-    folder_name = f"{args.model}_{args.target_col}_E{args.epochs}_LR{args.lr}_BS{args.bs}"
+    folder_name = f"{args.model}_{args.target_col}_E{args.epochs}_LR{args.lr}_BS{args.bs}_SEED{args.seed}"
 
     save_dir = os.path.join('results', folder_name)
     os.makedirs(save_dir, exist_ok=True)
@@ -179,6 +192,7 @@ def train(args):
     print(f"  Learning rate: {args.lr}")
     print(f"  Batch size: {args.bs}")
     print(f"  Early stopping: {args.es}")
+    print(f"  Seed: {args.seed}")
     print(f"  Folder wyników: {save_dir}")
 
     # Przygotowanie danych - deskryptory tylko dla modeli, które ich potrzebują
@@ -187,7 +201,7 @@ def train(args):
 
     train_loader, val_loader, test_loader = create_dataloaders(
         args.csv, target_col=args.target_col, batch_size=args.bs,
-        use_descriptors=use_descriptors
+        use_descriptors=use_descriptors, random_state=args.seed
     )
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -283,6 +297,7 @@ def train(args):
     metrics_df = pd.DataFrame([{
         'model': args.model,
         'target_col': args.target_col,
+        'seed': args.seed,
         'epochs': args.epochs,
         'learning_rate': args.lr,
         'batch_size': args.bs,
@@ -342,7 +357,8 @@ def train_all_models(args):
             epochs=args.epochs,
             lr=args.lr,
             bs=args.bs,
-            es=args.es
+            es=args.es,
+            seed=args.seed
         )
         _, history, metrics = train(model_args)
         results[model_type] = {
@@ -360,6 +376,8 @@ if __name__ == "__main__":
         description='Trenowanie modeli do predykcji Kp/Kpuu')
 
     # Argumenty dla standardowego treningu
+    parser.add_argument('--seed', type=int, default=42,
+                    help='Seed dla podziału danych i reprodukowalności')
     parser.add_argument('--csv', type=str, default='data/raw/train_kpuu_log.csv',
                         help='Ścieżka do pliku CSV z danymi')
     parser.add_argument('--target_col', type=str, default='pKpuu',
