@@ -139,10 +139,10 @@ class GINModel(nn.Module):
 
 
 # ============================================================================
-# 3. GraphDenseNet (uproszczona, działająca wersja, Residual GCN)
+# 3. ResidualGCN (uproszczona, działająca wersja, Residual GCN)
 # ============================================================================
 
-class GraphDenseNetModel(nn.Module):
+class ResidualGCNModel(nn.Module):
     """
     Uproszczona wersja Graph Dense Network.
     Używa warstw GraphConv z połączeniami gęstymi (skip connections).
@@ -213,9 +213,80 @@ class GraphDenseNetModel(nn.Module):
         return x.view(-1)
 
 
+class GraphDenseNetModel(nn.Module):
+    # TODO
+    """
+    KOPIA RESIDUAL 
+    """
+
+    def __init__(self, in_channels=74, hidden_dim=128, dropout=0.2):
+        super().__init__()
+
+        # Warstwy konwolucyjne
+        self.conv1 = GCNConv(in_channels, hidden_dim)
+        self.bn1 = BatchNorm1d(hidden_dim)
+
+        self.conv2 = GCNConv(hidden_dim, hidden_dim)
+        self.bn2 = BatchNorm1d(hidden_dim)
+
+        self.conv3 = GCNConv(hidden_dim, hidden_dim)
+        self.bn3 = BatchNorm1d(hidden_dim)
+
+        self.conv4 = GCNConv(hidden_dim, hidden_dim)
+        self.bn4 = BatchNorm1d(hidden_dim)
+
+        self.dropout = dropout
+
+        # Regresor
+        self.regressor = nn.Sequential(
+            nn.Linear(hidden_dim, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(32, 1)
+        )
+
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+
+        # Warstwa 1
+        x1 = self.conv1(x, edge_index)
+        x1 = self.bn1(x1)
+        x1 = F.relu(x1)
+        x1 = F.dropout(x1, p=self.dropout, training=self.training)
+
+        # Warstwa 2 (skip connection)
+        x2 = self.conv2(x1, edge_index)
+        x2 = self.bn2(x2)
+        x2 = F.relu(x2 + x1)  # Dodajemy wejście (skip connection)
+        x2 = F.dropout(x2, p=self.dropout, training=self.training)
+
+        # Warstwa 3 (skip connection)
+        x3 = self.conv3(x2, edge_index)
+        x3 = self.bn3(x3)
+        x3 = F.relu(x3 + x2)  # Dodajemy wejście
+        x3 = F.dropout(x3, p=self.dropout, training=self.training)
+
+        # Warstwa 4 (skip connection)
+        x4 = self.conv4(x3, edge_index)
+        x4 = self.bn4(x4)
+        x4 = F.relu(x4 + x3)  # Dodajemy wejście
+        x4 = F.dropout(x4, p=self.dropout, training=self.training)
+
+        # Global pooling
+        x = global_mean_pool(x4, batch)
+
+        # Regresja
+        x = self.regressor(x)
+
+        return x.view(-1)
+
 # ============================================================================
 # 4. DescriptorOnly Model
 # ============================================================================
+
 
 class DescriptorOnlyModel(nn.Module):
     """Model tylko deskryptorowy - do porównania z modelem grafowym."""

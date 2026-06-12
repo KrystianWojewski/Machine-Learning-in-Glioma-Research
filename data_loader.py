@@ -3,6 +3,8 @@
 Dodano obsługę deskryptorów fizykochemicznych.
 """
 
+import os
+
 import pandas as pd
 import numpy as np
 import torch
@@ -107,7 +109,7 @@ def collate_fn(batch):
 
 def create_dataloaders(csv_file, target_col='Kpuu', batch_size=32,
                        train_ratio=0.7, val_ratio=0.15, test_ratio=0.15,
-                       use_descriptors=True, random_state=None):
+                       use_descriptors=True, random_state=None, save_dir=None):
     """
     Tworzy DataLoadery dla treningu, walidacji i testu.
 
@@ -132,6 +134,14 @@ def create_dataloaders(csv_file, target_col='Kpuu', batch_size=32,
     train_idx, val_idx = train_test_split(
         train_val_idx, test_size=val_ratio_adjusted, random_state=random_state
     )
+
+    train_df = pd.DataFrame(dataset.df.iloc[train_idx])
+    val_df = pd.DataFrame(dataset.df.iloc[val_idx])
+    test_df = pd.DataFrame(dataset.df.iloc[test_idx])
+
+    train_df.to_csv(os.path.join(save_dir, 'train_data.csv'), index=False)
+    val_df.to_csv(os.path.join(save_dir, 'val_data.csv'), index=False)
+    test_df.to_csv(os.path.join(save_dir, 'test_data.csv'), index=False)
 
     # Tworzenie subsetów
     train_dataset = torch.utils.data.Subset(dataset, train_idx)

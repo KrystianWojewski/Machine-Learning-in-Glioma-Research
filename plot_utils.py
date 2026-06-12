@@ -52,7 +52,7 @@ class PlotGenerator:
     # WYKRESY TRENINGOWE
     # ========================================================================
 
-    def plot_learning_curves(self, history, model_name, target_col):
+    def plot_learning_curves(self, history, model_name, target_col, max_epochs, seed):
         """
         Rysuje krzywe uczenia się (strata i R²).
 
@@ -68,6 +68,10 @@ class PlotGenerator:
 
         epochs = range(1, len(history['train_loss']) + 1)
 
+        # axes[0].set_xlim(0, max_epochs)
+        axes[0].set_ylim(0, 1)
+        axes[1].set_ylim(0, 1)
+
         # Strata (MSE)
         axes[0].plot(epochs, history['train_loss'],
                      'b-', label='Trening', linewidth=2)
@@ -76,7 +80,7 @@ class PlotGenerator:
         axes[0].set_xlabel('Epoka', fontsize=12)
         axes[0].set_ylabel('Strata (MSE)', fontsize=12)
         axes[0].set_title(
-            f'{model_name}\nKrzywa uczenia się - Strata', fontsize=12)
+            f'{model_name} (Seed: {seed})\nKrzywa uczenia się - Strata', fontsize=12)
         axes[0].legend(fontsize=10)
         axes[0].grid(True, alpha=0.3)
 
@@ -95,7 +99,7 @@ class PlotGenerator:
         axes[1].set_xlabel('Epoka', fontsize=12)
         axes[1].set_ylabel('Współczynnik determinacji (R²)', fontsize=12)
         axes[1].set_title(
-            f'{model_name}\nKrzywa uczenia się - R²', fontsize=12)
+            f'{model_name} (Seed: {seed})\nKrzywa uczenia się - R²', fontsize=12)
         axes[1].legend(fontsize=10)
         axes[1].grid(True, alpha=0.3)
         axes[1].axhline(y=0, color='gray', linestyle='-', alpha=0.3)

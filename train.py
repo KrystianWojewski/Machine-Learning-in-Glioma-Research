@@ -15,7 +15,7 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 from models import (
     GCNModel, GINModel, GraphDenseNetModel,
-    DescriptorOnlyModel, HybridModel
+    DescriptorOnlyModel, HybridModel, ResidualGCNModel
 )
 from data_loader import create_dataloaders
 from plot_utils import PlotGenerator
@@ -34,6 +34,7 @@ def set_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
+
 
 class EarlyStopping:
     """Zatrzymuje trenowanie, gdy model przestaje się poprawiać."""
@@ -160,6 +161,8 @@ def get_model(model_type, descriptor_dim=None):
         return GINModel()
     elif model_type in ['GraphDenseNet', 'Graph', 'graph']:
         return GraphDenseNetModel()
+    elif model_type in ['ResidualGCN', 'residualgcn']:
+        return ResidualGCNModel()
     elif model_type in ['DescriptorOnly', 'Descriptor', 'descriptor']:
         return DescriptorOnlyModel(descriptor_dim=descriptor_dim)
     elif model_type in ['Hybrid', 'hybrid']:
@@ -201,7 +204,7 @@ def train(args):
 
     train_loader, val_loader, test_loader = create_dataloaders(
         args.csv, target_col=args.target_col, batch_size=args.bs,
-        use_descriptors=use_descriptors, random_state=args.seed
+        use_descriptors=use_descriptors, random_state=args.seed, save_dir=save_dir
     )
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -312,7 +315,8 @@ def train(args):
 
     # Narysuj wykresy
     plotter = PlotGenerator(save_dir=save_dir)
-    plotter.plot_learning_curves(history, args.model, args.target_col)
+    plotter.plot_learning_curves(
+        history, args.model, args.target_col, args.epochs, args.seed)
     plotter.plot_predictions_vs_true(
         test_true, test_pred, args.model, args.target_col)
     plotter.plot_residuals(test_true, test_pred, args.model, args.target_col)
@@ -330,7 +334,7 @@ def train_all_models(args):
     Rysuje zaawansowane wykresy porównawcze.
     """
     models_to_test = ['GCN', 'GIN',
-                      'GraphDenseNet', 'DescriptorOnly', 'Hybrid']
+                      'GraphDenseNet', 'DescriptorOnly', 'Hybrid', 'ResidualGCN']
     results = {}
     histories = {}
 
@@ -376,15 +380,15 @@ if __name__ == "__main__":
         description='Trenowanie modeli do predykcji Kp/Kpuu')
 
     # Argumenty dla standardowego treningu
-    parser.add_argument('--seed', type=int, default=42,
-                    help='Seed dla podziału danych i reprodukowalności')
+    parser.add_argument('--seed', type=int, default=None,
+                        help='Seed dla podziału danych i reprodukowalności')
     parser.add_argument('--csv', type=str, default='data/raw/train_kpuu_log.csv',
                         help='Ścieżka do pliku CSV z danymi')
     parser.add_argument('--target_col', type=str, default='pKpuu',
                         choices=['Kpuu', 'Kp', 'pKpuu', 'pKp'],
                         help='Kolumna do przewidzenia')
-    parser.add_argument('--model', type=str, default='GraphDenseNet',
-                        choices=['GCN', 'GIN', 'GraphDenseNet',
+    parser.add_argument('--model', type=str, default='ResidualGCN',
+                        choices=['GCN', 'GIN', 'ResidualGCN', 'GraphDenseNet',
                                  'DescriptorOnly', 'Hybrid', 'All'],
                         help='Typ modelu')
     parser.add_argument('--epochs', type=int, default=200,
@@ -406,14 +410,14 @@ if __name__ == "__main__":
 
 """
 Args:
---model GCN/GIN/GraphDenseNet/DescriptorOnly/Hybrid/All
+--model GCN/GIN/ResidualGCN/GraphDenseNet/DescriptorOnly/Hybrid/All
 --csv data/raw/train_kpuu.csv
 --target_col pKpuu
 --epochs 200
 --lr (learning rate) 0.0005
 --bs (batch size) 32
 --es (early stopping) 50
+--seed 42
 
-train.py --model GraphDenseNet --csv data/raw/train_kpuu_log.csv --target_col pKpuu --epochs 200 --lr 0.0005 --bs 32 --es 50
-
+train.py --model ResidualGCN --csv data/raw/train_kp_log.csv --target_col pKp --epochs 200 --lr 0.0005 --bs 32 --es 50 --seed 42
 """
