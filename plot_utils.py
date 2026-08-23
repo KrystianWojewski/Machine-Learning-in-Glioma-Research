@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 # Ustaw styl wykresów
 
@@ -151,9 +152,9 @@ class PlotGenerator:
                 label=f'Linia regresji (y = {z[0]:.2f}x + {z[1]:.2f})')
 
         # Metryki
-        r2 = np.corrcoef(y_true, y_pred)[0, 1]**2
-        rmse = np.sqrt(np.mean((y_true - y_pred)**2))
-        mae = np.mean(np.abs(y_true - y_pred))
+        r2 = r2_score(y_true, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+        mae = mean_absolute_error(y_true, y_pred)
 
         ax.set_xlabel(f'Rzeczywiste {target_col}', fontsize=12)
         ax.set_ylabel(f'Przewidywane {target_col}', fontsize=12)
