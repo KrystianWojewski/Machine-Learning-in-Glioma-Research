@@ -1,0 +1,2 @@
+model,target_col,seed,epochs,learning_rate,batch_size,early_stop,test_loss,test_rmse,test_mae,test_r2,best_epoch
+GraphDenseNet,Kp,202,200,0.0005,32,50,3.668088436126709,1.9124507514320546,1.2630000117693156,-0.24000856316883357,8
