@@ -11,18 +11,10 @@ from data_loader import create_dataloaders
 from plot_utils import PlotGenerator
 from train import get_model, train_epoch, evaluate, EarlyStopping
 
-# Ustaw styl wykresów
 plt.style.use('ggplot')
 
 
 def freeze_layers_by_ratio(model, freeze_ratio=0.5):
-    """
-    Zamraża określony procent warstw modelu.
-
-    Kolejność zamrażania: od najwcześniejszych warstw (conv1, bn1)
-    do najpóźniejszych (regressor).
-    """
-    # Pobierz nazwy wszystkich parametrów w kolejności
     param_names = []
     for name, param in model.named_parameters():
         param_names.append(name)
@@ -84,14 +76,11 @@ def finetune(args):
     else:
         model = get_model(model_name).to(device)
 
-    # Załaduj pre-trenowany model
     model.load_state_dict(torch.load(args.model_path))
 
-    # Zamroź warstwy
     if args.fr > 0:
         model = freeze_layers_by_ratio(model, args.fr)
 
-    # Optymalizator dla trenowalnych parametrów
     optimizer = optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr_ft)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
@@ -137,7 +126,6 @@ def finetune(args):
             print(f"\nEarly stopping w epoce {epoch+1}")
             break
 
-    # Ewaluacja na zbiorze testowym
     print("\n" + "="*60)
     print("waluacja na zbiorze testowym")
     print("="*60)
@@ -153,7 +141,6 @@ def finetune(args):
     print(f"  MAE:  {test_mae:.4f}")
     print(f"  R²:   {test_r2:.4f}")
 
-    # Zapisz wyniki
     results_df = pd.DataFrame({
         'true': test_true,
         'predicted': test_pred
@@ -164,7 +151,6 @@ def finetune(args):
     history_df.to_csv(os.path.join(
         save_dir, 'training_history.csv'), index=False)
 
-    # Zapisz metryki
     metrics_df = pd.DataFrame([{
         'pretrained_model': args.model_path,
         'model': model_name,

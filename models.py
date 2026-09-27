@@ -20,10 +20,6 @@ from torch.nn import BatchNorm1d
 # ============================================================================
 
 class GCNModel(nn.Module):
-    """
-    Graph Convolutional Network - prosta, klasyczna architektura.
-    """
-
     def __init__(self, in_channels=74, hidden_dim=128, dropout=0.2):
         super().__init__()
 
@@ -73,10 +69,6 @@ class GCNModel(nn.Module):
 # ============================================================================
 
 class GINModel(nn.Module):
-    """
-    Graph Isomorphism Network - teoretycznie najsilniejsza architektura GNN.
-    """
-
     def __init__(self, in_channels=74, hidden_dim=128, dropout=0.2):
         super().__init__()
 
@@ -144,11 +136,6 @@ class GINModel(nn.Module):
 # ============================================================================
 
 class ResidualGCNModel(nn.Module):
-    """
-    Uproszczona wersja Graph Dense Network.
-    Używa warstw GraphConv z połączeniami gęstymi (skip connections).
-    """
-
     def __init__(self, in_channels=74, hidden_dim=128, dropout=0.2):
         super().__init__()
 
@@ -219,11 +206,6 @@ class ResidualGCNModel(nn.Module):
 
 
 class GraphConvBn(nn.Module):
-    """
-    Warstwa: GraphConv + BatchNorm + ReLU
-    Podstawowy budulec sieci.
-    """
-
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.conv = GraphConv(in_channels, out_channels)
@@ -237,11 +219,6 @@ class GraphConvBn(nn.Module):
 
 
 class DenseLayer(nn.Module):
-    """
-    Gęsta warstwa w bloku DenseNet.
-    Łączy wejście z wyjściem przez concat (stackowanie).
-    """
-
     def __init__(self, in_channels, growth_rate=32, bn_size=4):
         super().__init__()
         # Najpierw rozszerzamy (bn_size * growth_rate), potem zmniejszamy do growth_rate
@@ -258,11 +235,6 @@ class DenseLayer(nn.Module):
 
 
 class DenseBlock(nn.Module):
-    """
-    Blok złożony z kilku gęstych warstw.
-    Liczba cech rośnie z każdą warstwą.
-    """
-
     def __init__(self, num_layers, in_channels, growth_rate=32, bn_size=4):
         super().__init__()
         self.layers = nn.ModuleList()
@@ -280,11 +252,6 @@ class DenseBlock(nn.Module):
 
 
 class TransitionLayer(nn.Module):
-    """
-    Warstwa przejściowa między blokami.
-    Zmniejsza liczbę cech o połowę.
-    """
-
     def __init__(self, in_channels):
         super().__init__()
         out_channels = in_channels // 2
@@ -295,36 +262,23 @@ class TransitionLayer(nn.Module):
 
 
 class GraphDenseNetModel(nn.Module):
-    """
-    Graph Dense Network z prawdziwymi połączeniami gęstymi (DenseNet).
-    """
-
     def __init__(self, in_channels=74, growth_rate=32, num_layers_per_block=4, dropout=0.2):
         super().__init__()
 
-        # Warstwa wstępna: 74 → 32
         self.initial = GraphConvBn(in_channels, 32)
 
-        # DenseBlock 1: 32 → 32 + 4*32 = 160
         self.block1 = DenseBlock(num_layers_per_block, 32, growth_rate)
-        # Transition 1: 160 → 80
         self.trans1 = TransitionLayer(160)
 
-        # DenseBlock 2: 80 → 80 + 4*32 = 208
         self.block2 = DenseBlock(num_layers_per_block, 80, growth_rate)
-        # Transition 2: 208 → 104
         self.trans2 = TransitionLayer(208)
 
-        # DenseBlock 3: 104 → 104 + 4*32 = 232
         self.block3 = DenseBlock(num_layers_per_block, 104, growth_rate)
 
-        # Ostatnia warstwa liniowa (opcjonalna)
         self.final_linear = nn.Linear(232, 232)
 
-        # Dropout
         self.dropout = dropout
 
-        # Regresor - BEZ BatchNorm (żeby uniknąć błędu z batch_size=1)
         self.regressor = nn.Sequential(
             nn.Linear(232, 128),
             nn.ReLU(),
@@ -372,8 +326,6 @@ class GraphDenseNetModel(nn.Module):
 
 
 class DescriptorOnlyModel(nn.Module):
-    """Model tylko deskryptorowy - do porównania z modelem grafowym."""
-
     def __init__(self, descriptor_dim=18, hidden_dim=128, dropout=0.2):
         super().__init__()
         self.encoder = nn.Sequential(
@@ -403,12 +355,9 @@ class DescriptorOnlyModel(nn.Module):
 # ============================================================================
 
 class HybridModel(nn.Module):
-    """Model hybrydowy: GNN (na grafie) + MLP (na deskryptorach)."""
-
     def __init__(self, descriptor_dim=18, hidden_dim=128, dropout=0.2):
         super().__init__()
 
-        # GNN encoder
         self.gnn_conv1 = GCNConv(74, hidden_dim)
         self.gnn_bn1 = BatchNorm1d(hidden_dim)
         self.gnn_conv2 = GCNConv(hidden_dim, hidden_dim)
@@ -416,7 +365,6 @@ class HybridModel(nn.Module):
         self.gnn_conv3 = GCNConv(hidden_dim, hidden_dim)
         self.gnn_bn3 = BatchNorm1d(hidden_dim)
 
-        # Descriptor encoder
         self.desc_encoder = nn.Sequential(
             nn.Linear(descriptor_dim, hidden_dim // 2),
             nn.BatchNorm1d(hidden_dim // 2),
@@ -427,7 +375,6 @@ class HybridModel(nn.Module):
             nn.ReLU(),
         )
 
-        # Regresor (łączy embedding z GNN i deskryptorów)
         combined_dim = hidden_dim + (hidden_dim // 2)
         self.regressor = nn.Sequential(
             nn.Linear(combined_dim, 128),
@@ -445,7 +392,6 @@ class HybridModel(nn.Module):
     def forward(self, data, descriptors):
         x, edge_index, batch = data.x, data.edge_index, data.batch
 
-        # GNN forward
         x = self.gnn_conv1(x, edge_index)
         x = self.gnn_bn1(x)
         x = F.relu(x)
@@ -460,25 +406,20 @@ class HybridModel(nn.Module):
         x = self.gnn_bn3(x)
         x = F.relu(x)
 
-        # Global pooling
         graph_embedding = global_mean_pool(
             x, batch)  # [batch_size, hidden_dim]
 
-        # Descriptor forward
         desc_embedding = self.desc_encoder(
             descriptors)  # [batch_size, hidden_dim/2]
 
-        # Konkatenacja
         combined = torch.cat([graph_embedding, desc_embedding], dim=1)
 
-        # Regresja
         output = self.regressor(combined)
 
         return output.view(-1)
 
 
 def get_model(model_type, descriptor_dim=None, **kwargs):
-    """Zwraca odpowiedni model na podstawie typu."""
     models_map = {
         'GCN': GCNModel,
         'GIN': GINModel,
@@ -502,5 +443,4 @@ def get_model(model_type, descriptor_dim=None, **kwargs):
 
 
 def get_all_model_names():
-    """Zwraca listę wszystkich dostępnych modeli."""
     return ['GCN', 'GIN', 'ResidualGCN', 'GraphDenseNet', 'DescriptorOnly', 'Hybrid']

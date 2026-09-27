@@ -57,9 +57,6 @@ def integrated_gradients(model, data, target_idx=0, steps=50):
 
 
 def get_atom_contributions(smiles, model, device):
-    """
-    Dla pojedynczej cząsteczki oblicza ważność każdego atomu.
-    """
     graph_dict = smiles_to_graph(smiles)
     if graph_dict is None:
         return None, None
@@ -78,9 +75,6 @@ def get_atom_contributions(smiles, model, device):
 
 
 def visualize_important_atoms(smiles, model, device, save_path=None):
-    """
-    Wizualizuje cząsteczkę z kolorami wskazującymi ważność atomów.
-    """
     mol, importance = get_atom_contributions(smiles, model, device)
 
     if mol is None:
@@ -106,9 +100,6 @@ def visualize_important_atoms(smiles, model, device, save_path=None):
 
 
 def analyze_dataset(model, device, csv_file, target_col, n_samples=10):
-    """
-    Analizuje wybrane przykłady ze zbioru testowego.
-    """
     df = pd.read_csv(csv_file)
     df = df.dropna(subset=[target_col])
 
@@ -176,7 +167,6 @@ def analyze_dataset(model, device, csv_file, target_col, n_samples=10):
 
 
 def plot_atom_importance_for_molecules(results, save_path=None, top_k=5):
-    """Rysuje wykres słupkowy pokazujący najważniejsze atomy dla każdej cząsteczki."""
     sorted_results = sorted(results, key=lambda x: x['true'])
     low_pkpuu = sorted_results[:2]
     high_pkpuu = sorted_results[-2:]
@@ -224,7 +214,6 @@ def plot_atom_importance_for_molecules(results, save_path=None, top_k=5):
 
 
 def plot_all_atoms_importance(results, save_path=None):
-    """Rysuje wykres punktowy wszystkich atomów we wszystkich cząsteczkach."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
     all_importances = []
@@ -285,7 +274,6 @@ def plot_all_atoms_importance(results, save_path=None):
 
 
 def plot_individual_atom_importance(results, save_path=None):
-    """Dla KAŻDEJ cząsteczki pokazuje, które TYPY atomów są ważne."""
     sorted_results = sorted(results, key=lambda x: x['true'])
     good = sorted_results[:5]
     bad = sorted_results[-5:]
@@ -381,7 +369,6 @@ def plot_individual_atom_importance(results, save_path=None):
 
 
 def plot_best_vs_worst_penetrator(results, save_path=None):
-    """Porównuje najlepszy i najgorszy przenikacz."""
     if len(results) < 2:
         print("Za mało wyników do porównania")
         return
@@ -511,7 +498,6 @@ if __name__ == "__main__":
     print(f"Kolumna docelowa: {args.target_col}")
     print(f"Ścieżka modelu: {args.model_path}")
 
-    # Określ typ modelu na podstawie nazwy pliku lub folderu
     if 'GCN' in args.model_path:
         model_type = 'GCN'
     elif 'GIN' in args.model_path:
@@ -521,27 +507,22 @@ if __name__ == "__main__":
 
     print(f"Typ modelu: {model_type}")
 
-    # Użyj deskryptorów? Dla interpretowalności grafowej nie używamy
     use_descriptors = False
 
-    # Pobierz wymiar deskryptorów (nieużywany, ale potrzebny do get_model)
     if use_descriptors:
         from descriptors import get_descriptor_names
         desc_dim = len(get_descriptor_names())
     else:
         desc_dim = None
 
-    # Załaduj model TAK JAK W FINETUNE.PY
     model = get_model(model_type, descriptor_dim=desc_dim).to(device)
     model.load_state_dict(torch.load(args.model_path, map_location=device))
     model.eval()
 
-    # Utwórz katalog zapisu
     save_dir = f'results/{args.model_path.split("\\")[1]}/interpretability'
     os.makedirs(save_dir, exist_ok=True)
     print(f"Katalog zapisu: {save_dir}")
 
-    # Analiza
     results = analyze_dataset(model, device, args.csv,
                               args.target_col, args.n_samples)
 

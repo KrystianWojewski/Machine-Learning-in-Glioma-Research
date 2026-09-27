@@ -1,9 +1,3 @@
-"""
-plot_utils.py
-Moduł z funkcjami do generowania wykresów dla projektu.
-Może być używany zarówno podczas trenowania, jak i do generowania raportów.
-"""
-
 import os
 import pandas as pd
 import numpy as np
@@ -11,22 +5,10 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
-# Ustaw styl wykresów
-
 plt.style.use('ggplot')
 
 
-# ============================================================================
-# KLASA DO ZARZĄDZANIA WYKRESAMI
-# ============================================================================
-
-
 class PlotGenerator:
-    """
-    Klasa do generowania różnych wykresów.
-    Przechowuje konfigurację i może być używana w różnych miejscach.
-    """
-
     def __init__(self, save_dir=None, dpi=150, style=None):
         """
         Args:
@@ -43,27 +25,17 @@ class PlotGenerator:
             os.makedirs(save_dir, exist_ok=True)
 
     def _save_plot(self, filename):
-        """Zapisuje wykres jeśli save_dir jest podany."""
         if self.save_dir:
             save_path = os.path.join(self.save_dir, filename)
             plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
             print(f"Zapisano: {save_path}")
 
-    # ========================================================================
-    # WYKRESY TRENINGOWE
-    # ========================================================================
-
     def plot_learning_curves(self, history, model_name, target_col, max_epochs, seed):
         """
-        Rysuje krzywe uczenia się (strata i R²).
-
         Args:
             history: słownik z kluczami 'train_loss', 'val_loss', 'train_r2', 'val_r2'
             model_name: nazwa modelu (do tytułu)
             target_col: kolumna docelowa (do tytułu)
-
-        Returns:
-            fig, axes
         """
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
@@ -118,40 +90,30 @@ class PlotGenerator:
 
     def plot_predictions_vs_true(self, y_true, y_pred, model_name, target_col):
         """
-        Rysuje wykres przewidywane vs rzeczywiste.
-
         Args:
             y_true: rzeczywiste wartości (lista lub numpy array)
             y_pred: przewidywane wartości (lista lub numpy array)
             model_name: nazwa modelu
             target_col: kolumna docelowa
-
-        Returns:
-            fig, ax
         """
-        # Konwersja na numpy array
         y_true = np.array(y_true)
         y_pred = np.array(y_pred)
 
         fig, ax = plt.subplots(figsize=(8, 8))
 
-        # Punkty
         ax.scatter(y_true, y_pred, alpha=0.5, c='steelblue', s=50,
                    edgecolors='black', linewidth=0.5)
 
-        # Linia idealnej predykcji
         min_val = min(y_true.min(), y_pred.min())
         max_val = max(y_true.max(), y_pred.max())
         ax.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2,
                 label='Idealna predykcja (y = x)')
 
-        # Linia regresji
         z = np.polyfit(y_true, y_pred, 1)
         p = np.poly1d(z)
         ax.plot([min_val, max_val], p([min_val, max_val]), 'g-', linewidth=2,
                 label=f'Linia regresji (y = {z[0]:.2f}x + {z[1]:.2f})')
 
-        # Metryki
         r2 = r2_score(y_true, y_pred)
         rmse = np.sqrt(mean_squared_error(y_true, y_pred))
         mae = mean_absolute_error(y_true, y_pred)
@@ -163,37 +125,28 @@ class PlotGenerator:
         ax.legend(fontsize=10)
         ax.grid(True, alpha=0.3)
 
-        # Metryki na wykresie
         ax.text(0.05, 0.95, f'R² = {r2:.4f}\nRMSE = {rmse:.4f}\nMAE = {mae:.4f}',
                 transform=ax.transAxes, fontsize=10,
                 verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
-        # plt.tight_layout()
         self._save_plot(f'{model_name}_{target_col}_predictions.png')
 
         return fig, ax
 
     def plot_residuals(self, y_true, y_pred, model_name, target_col):
         """
-        Rysuje wykres reszt i QQ-plot.
-
         Args:
             y_true: rzeczywiste wartości (lista lub numpy array)
             y_pred: przewidywane wartości (lista lub numpy array)
             model_name: nazwa modelu
             target_col: kolumna docelowa
-
-        Returns:
-            fig, axes
         """
-        # Konwersja na numpy array
         y_true = np.array(y_true)
         y_pred = np.array(y_pred)
         residuals = y_true - y_pred
 
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-        # Wykres reszt vs przewidywane
         axes[0].scatter(y_pred, residuals, alpha=0.6, s=50, c='steelblue',
                         edgecolors='black', linewidth=0.5)
         axes[0].axhline(y=0, color='red', linestyle='--', linewidth=2)
@@ -202,36 +155,27 @@ class PlotGenerator:
         axes[0].set_title(f'{model_name}\nWykres reszt', fontsize=12)
         axes[0].grid(True, alpha=0.3)
 
-        # QQ-plot
         stats.probplot(residuals, dist="norm", plot=axes[1])
         axes[1].set_title(
             'Wykres kwantyl-kwantyl (QQ-plot)\nsprawdzenie normalności reszt', fontsize=12)
         axes[1].grid(True, alpha=0.3)
 
-        # Statystyki
         axes[0].text(0.05, 0.95, f'Średnia reszt: {np.mean(residuals):.4f}\nOdch. std.: {np.std(residuals):.4f}',
                      transform=axes[0].transAxes, fontsize=9,
                      verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
-        # plt.tight_layout()
         self._save_plot(f'{model_name}_{target_col}_residuals.png')
 
         return fig, axes
 
     def plot_errors_vs_target(self, y_true, y_pred, model_name, target_col):
         """
-        Rysuje wykres błędów w funkcji wartości docelowej.
-
         Args:
             y_true: rzeczywiste wartości (lista lub numpy array)
             y_pred: przewidywane wartości (lista lub numpy array)
             model_name: nazwa modelu
             target_col: kolumna docelowa
-
-        Returns:
-            fig, ax
         """
-        # Konwersja na numpy array
         y_true = np.array(y_true)
         y_pred = np.array(y_pred)
         errors = np.abs(y_true - y_pred)
@@ -253,19 +197,12 @@ class PlotGenerator:
         cbar = plt.colorbar(scatter)
         cbar.set_label('Błąd bezwzględny', fontsize=10)
 
-        # plt.tight_layout()
         self._save_plot(f'{model_name}_{target_col}_errors.png')
 
         return fig, ax
 
-    # ========================================================================
-    # WYKRESY ANALIZY DANYCH
-    # ========================================================================
-
     def plot_target_distribution(self, df_kpuu, df_pkpuu, save_name='target_distribution'):
         """
-        Rysuje rozkład wartości docelowych (Kpuu vs pKpuu).
-
         Args:
             df_kpuu: DataFrame z kolumną 'Kpuu'
             df_pkpuu: DataFrame z kolumną 'pKpuu'
@@ -273,7 +210,6 @@ class PlotGenerator:
         """
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-        # Kpuu
         kpuu_data = df_kpuu['Kpuu'].dropna()
         axes[0].hist(kpuu_data, bins=50, color='steelblue',
                      edgecolor='black', alpha=0.7)
@@ -285,7 +221,6 @@ class PlotGenerator:
         axes[0].legend()
         axes[0].grid(True, alpha=0.3)
 
-        # pKpuu
         pkpuu_data = df_pkpuu['pKpuu'].dropna()
         axes[1].hist(pkpuu_data, bins=50, color='steelblue',
                      edgecolor='black', alpha=0.7)
@@ -307,14 +242,11 @@ class PlotGenerator:
 
     def plot_pkp_vs_pkpuu(self, df_kp_log, df_kpuu_log, save_name='pkp_vs_pkpuu'):
         """
-        Rysuje zależność między pKp a pKpuu (wersje logarytmiczne).
-
         Args:
             df_kp_log: DataFrame z kolumnami 'SMILES' i 'pKp'
             df_kpuu_log: DataFrame z kolumnami 'SMILES' i 'pKpuu'
             save_name: nazwa pliku do zapisu
         """
-        # Połącz dane na podstawie SMILES
         df_merged = pd.merge(df_kp_log, df_kpuu_log, on='SMILES', how='inner')
 
         if len(df_merged) == 0:
@@ -323,26 +255,21 @@ class PlotGenerator:
 
         fig, ax = plt.subplots(figsize=(8, 8))
 
-        # Punkty
         ax.scatter(df_merged['pKp'], df_merged['pKpuu'], alpha=0.6, s=50,
                    c='steelblue', edgecolors='black', linewidth=0.5)
 
-        # Linia y = x
         min_val = min(df_merged['pKp'].min(), df_merged['pKpuu'].min())
         max_val = max(df_merged['pKp'].max(), df_merged['pKpuu'].max())
         ax.plot([min_val, max_val], [min_val, max_val],
                 'r--', linewidth=2, label='y = x')
 
-        # Linia regresji
         z = np.polyfit(df_merged['pKp'], df_merged['pKpuu'], 1)
         p = np.poly1d(z)
         ax.plot([min_val, max_val], p([min_val, max_val]), 'g-', linewidth=2,
                 label=f'Regresja (y = {z[0]:.2f}x + {z[1]:.2f})')
 
-        # Korelacja
         correlation = df_merged['pKp'].corr(df_merged['pKpuu'])
 
-        # Ustawienia osi
         ax.set_xlabel('pKp = -log₁₀(Kp)', fontsize=12)
         ax.set_ylabel('pKpuu = -log₁₀(Kpuu)', fontsize=12)
         ax.set_title(
@@ -351,7 +278,6 @@ class PlotGenerator:
         ax.grid(True, alpha=0.3)
         ax.set_aspect('equal')
 
-        # Dodaj informację o liczbie punktów
         ax.text(0.05, 0.95, f'n = {len(df_merged)} związków', transform=ax.transAxes,
                 fontsize=10, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
@@ -362,8 +288,6 @@ class PlotGenerator:
 
     def plot_atom_importance(self, smiles, importance, mol, save_name=None):
         """
-        Rysuje wykres ważności atomów dla pojedynczej cząsteczki.
-
         Args:
             smiles: SMILES cząsteczki (tylko do tytułu)
             importance: lista/tablica ważności dla każdego atomu
@@ -371,7 +295,7 @@ class PlotGenerator:
             save_name: nazwa pliku do zapisu
         """
         if mol is None:
-            print("⚠️ Nie można wyświetlić ważności atomów – brak obiektu mol")
+            print("Nie można wyświetlić ważności atomów - brak obiektu mol")
             return None, None
 
         # Przygotuj dane
@@ -426,7 +350,7 @@ class PlotGenerator:
         """
         n_molecules = len(results)
         if n_molecules == 0:
-            print("⚠️ Brak danych do porównania")
+            print("Brak danych do porównania")
             return None, None
 
         # Wybierz maksymalną liczbę atomów dla spójnej siatki
@@ -460,9 +384,8 @@ class PlotGenerator:
                               fontsize=9)
             axes[i].grid(True, alpha=0.3, axis='y')
 
-            # Dodaj etykiety atomów tylko dla co drugiego atomu (żeby nie było tłoczno)
             for j, (symbol, imp) in enumerate(zip(atom_symbols, importance)):
-                if j % 2 == 0:  # co drugi atom
+                if j % 2 == 0:
                     axes[i].text(j, imp + (0.02 if imp > 0 else -0.03),
                                  symbol, ha='center', va='bottom' if imp > 0 else 'top',
                                  fontsize=7)
@@ -477,8 +400,6 @@ class PlotGenerator:
 
     def plot_top_atoms_summary(self, results, top_k=5, save_name='top_atoms_summary'):
         """
-        Rysuje zbiorczy wykres najważniejszych atomów ze wszystkich cząsteczek.
-
         Args:
             results: lista słowników z kluczami 'mol', 'importance'
             top_k: liczba najważniejszych atomów do uwzględnienia z każdej cząsteczki
@@ -486,25 +407,21 @@ class PlotGenerator:
         """
         from collections import Counter
 
-        # Zbierz wszystkie najważniejsze atomy
         atom_counter = Counter()
 
         for res in results:
             mol = res['mol']
             importance = res['importance']
 
-            # Znajdź top_k najważniejszych atomów
             top_indices = np.argsort(importance)[-top_k:][::-1]
 
             for idx in top_indices:
                 atom_symbol = mol.GetAtomWithIdx(int(idx)).GetSymbol()
                 atom_counter[atom_symbol] += 1
 
-        # Przygotuj dane do wykresu
         atom_types = list(atom_counter.keys())
         counts = list(atom_counter.values())
 
-        # Posortuj malejąco
         sorted_idx = np.argsort(counts)[::-1]
         atom_types = [atom_types[i] for i in sorted_idx]
         counts = [counts[i] for i in sorted_idx]
@@ -520,7 +437,6 @@ class PlotGenerator:
             f'Najczęściej występujące ważne atomy\n(na podstawie {len(results)} cząsteczek)', fontsize=12)
         ax.grid(True, alpha=0.3, axis='y')
 
-        # Dodaj wartości na słupkach
         for bar, val in zip(bars, counts):
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
                     str(val), ha='center', va='bottom', fontsize=10)
@@ -532,8 +448,6 @@ class PlotGenerator:
 
     def plot_importance_vs_property(self, results, property_name='true_pkpuu', save_name='importance_vs_property'):
         """
-        Rysuje zależność między średnią/maksymalną ważnością atomów a właściwością cząsteczki.
-
         Args:
             results: lista słowników z kluczami 'importance', property_name
             property_name: nazwa właściwości do porównania (np. 'true_pkpuu', 'pred_pkpuu')
@@ -545,7 +459,6 @@ class PlotGenerator:
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-        # Średnia ważność vs właściwość
         axes[0].scatter(property_values, mean_importances, alpha=0.6, s=50,
                         c='steelblue', edgecolors='black', linewidth=0.5)
         axes[0].set_xlabel(property_name, fontsize=12)
@@ -554,7 +467,6 @@ class PlotGenerator:
             'Średnia ważność atomów a właściwość cząsteczki', fontsize=12)
         axes[0].grid(True, alpha=0.3)
 
-        # Dodaj linię trendu
         z = np.polyfit(property_values, mean_importances, 1)
         p = np.poly1d(z)
         x_line = np.array([min(property_values), max(property_values)])
@@ -562,7 +474,6 @@ class PlotGenerator:
                      label=f'Trend (r = {np.corrcoef(property_values, mean_importances)[0, 1]:.3f})')
         axes[0].legend()
 
-        # Maksymalna ważność vs właściwość
         axes[1].scatter(property_values, max_importances, alpha=0.6, s=50,
                         c='steelblue', edgecolors='black', linewidth=0.5)
         axes[1].set_xlabel(property_name, fontsize=12)
@@ -584,10 +495,6 @@ class PlotGenerator:
 
         return fig, axes
 
-
-# ============================================================================
-# FUNKCJE POMOCNICZE (do użytku bez instancji klasy)
-# ============================================================================
 
 def quick_plot_learning_curves(history, model_name, target_col, save_path=None):
     """Szybka funkcja do wygenerowania krzywych uczenia się."""

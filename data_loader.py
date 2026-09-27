@@ -1,8 +1,3 @@
-"""
-Ładowanie danych i konwersja SMILES na grafy.
-Dodano obsługę deskryptorów fizykochemicznych.
-"""
-
 import os
 
 import pandas as pd
@@ -15,10 +10,6 @@ from descriptors import calculate_descriptors, get_descriptor_names
 
 
 class PropertyDataset(Dataset):
-    """
-    Dataset dla przewidywania właściwości cząsteczek (Kp/Kpuu).
-    Obsługuje zarówno grafy, jak i deskryptory fizykochemiczne.
-    """
 
     def __init__(self, csv_file, target_col='Kpuu', use_descriptors=True, transform=None):
         """
@@ -89,11 +80,6 @@ class PropertyDataset(Dataset):
 
 
 def collate_fn(batch):
-    """
-    Łączy listę pojedynczych grafów w jeden batch.
-    Obsługuje zarówno wersję z deskryptorami, jak i bez.
-    """
-    # Sprawdź czy batch zawiera deskryptory
     if len(batch[0]) == 3:
         graphs, descs, labels = zip(*batch)
         batch_graphs = Batch.from_data_list(graphs)
@@ -110,12 +96,6 @@ def collate_fn(batch):
 def create_dataloaders(csv_file, target_col='Kpuu', batch_size=32,
                        train_ratio=0.7, val_ratio=0.15, test_ratio=0.15,
                        use_descriptors=True, random_state=None, save_dir=None):
-    """
-    Tworzy DataLoadery dla treningu, walidacji i testu.
-
-    Args:
-        use_descriptors: czy dodawać deskryptory fizykochemiczne
-    """
     from sklearn.model_selection import train_test_split
 
     dataset = PropertyDataset(csv_file, target_col,

@@ -5,12 +5,7 @@ from rdkit.Chem import rdMolDescriptors
 
 
 def calculate_descriptors(smiles):
-    """
-    Oblicza zestaw deskryptorów fizykochemicznych dla cząsteczki.
 
-    Returns:
-        numpy array z deskryptorami lub None jeśli błąd
-    """
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return None
@@ -145,7 +140,6 @@ def calculate_descriptors(smiles):
 
 
 def get_descriptor_names():
-    """Zwraca nazwy deskryptorów w kolejności."""
     return [
         'logP_norm',
         'TPSA_norm',
@@ -169,7 +163,6 @@ def get_descriptor_names():
 
 
 def test_descriptors():
-    """Testuje obliczanie deskryptorów dla przykładowej cząsteczki."""
     smiles = "CC(C)(O)c1cc2nc(-c3cnc(N)nc3)nc(N3CCOCC3)c2s1"
     desc = calculate_descriptors(smiles)
     names = get_descriptor_names()
