@@ -1,7 +1,4 @@
-"""
-Ładowanie danych i konwersja SMILES na grafy.
-Dodano obsługę deskryptorów fizykochemicznych.
-"""
+import os
 
 import pandas as pd
 import numpy as np
@@ -13,10 +10,6 @@ from descriptors import calculate_descriptors, get_descriptor_names
 
 
 class PropertyDataset(Dataset):
-    """
-    Dataset dla przewidywania właściwości cząsteczek (Kp/Kpuu).
-    Obsługuje zarówno grafy, jak i deskryptory fizykochemiczne.
-    """
 
     def __init__(self, csv_file, target_col='Kpuu', use_descriptors=True, transform=None):
         """
@@ -87,11 +80,6 @@ class PropertyDataset(Dataset):
 
 
 def collate_fn(batch):
-    """
-    Łączy listę pojedynczych grafów w jeden batch.
-    Obsługuje zarówno wersję z deskryptorami, jak i bez.
-    """
-    # Sprawdź czy batch zawiera deskryptory
     if len(batch[0]) == 3:
         graphs, descs, labels = zip(*batch)
         batch_graphs = Batch.from_data_list(graphs)
@@ -107,13 +95,7 @@ def collate_fn(batch):
 
 def create_dataloaders(csv_file, target_col='Kpuu', batch_size=32,
                        train_ratio=0.7, val_ratio=0.15, test_ratio=0.15,
-                       use_descriptors=True, random_state=42):
-    """
-    Tworzy DataLoadery dla treningu, walidacji i testu.
-
-    Args:
-        use_descriptors: czy dodawać deskryptory fizykochemiczne
-    """
+                       use_descriptors=True, random_state=None, save_dir=None):
     from sklearn.model_selection import train_test_split
 
     dataset = PropertyDataset(csv_file, target_col,
@@ -132,6 +114,14 @@ def create_dataloaders(csv_file, target_col='Kpuu', batch_size=32,
     train_idx, val_idx = train_test_split(
         train_val_idx, test_size=val_ratio_adjusted, random_state=random_state
     )
+
+    train_df = pd.DataFrame(dataset.df.iloc[train_idx])
+    val_df = pd.DataFrame(dataset.df.iloc[val_idx])
+    test_df = pd.DataFrame(dataset.df.iloc[test_idx])
+
+    train_df.to_csv(os.path.join(save_dir, 'train_data.csv'), index=False)
+    val_df.to_csv(os.path.join(save_dir, 'val_data.csv'), index=False)
+    test_df.to_csv(os.path.join(save_dir, 'test_data.csv'), index=False)
 
     # Tworzenie subsetów
     train_dataset = torch.utils.data.Subset(dataset, train_idx)

@@ -1,0 +1,2 @@
+model,target_col,seed,epochs,learning_rate,batch_size,early_stop,test_loss,test_rmse,test_mae,test_r2,best_epoch
+GIN,pKp,202,200,0.0005,32,50,0.15525009855628014,0.39339683275994985,0.308909718183771,0.5130839025092275,19

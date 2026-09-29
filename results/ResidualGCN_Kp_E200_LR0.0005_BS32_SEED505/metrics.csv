@@ -1,0 +1,2 @@
+model,target_col,seed,epochs,learning_rate,batch_size,early_stop,test_loss,test_rmse,test_mae,test_r2,best_epoch
+ResidualGCN,Kp,505,200,0.0005,32,50,3.3268356323242188,1.818480545533464,1.1974890300087513,-0.05831063995161445,16

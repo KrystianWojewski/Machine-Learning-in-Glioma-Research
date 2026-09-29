@@ -1,8 +1,3 @@
-"""
-Trenowanie modeli do predykcji Kp/Kpuu.
-Obsługa argumentów wiersza poleceń.
-"""
-
 import os
 import argparse
 import torch
@@ -15,17 +10,26 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 from models import (
     GCNModel, GINModel, GraphDenseNetModel,
-    DescriptorOnlyModel, HybridModel
+    DescriptorOnlyModel, HybridModel, ResidualGCNModel
 )
 from data_loader import create_dataloaders
 from plot_utils import PlotGenerator
 
-# Ustaw styl wykresów
 plt.style.use('seaborn-v0_8-darkgrid')
 
 
+def set_seed(seed):
+    import random
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+
 class EarlyStopping:
-    """Zatrzymuje trenowanie, gdy model przestaje się poprawiać."""
 
     def __init__(self, patience=50, min_delta=0.001):
         self.patience = patience
@@ -50,14 +54,12 @@ class EarlyStopping:
 
 
 def train_epoch(model, train_loader, optimizer, criterion, device, model_type):
-    """Trenowanie przez jedną epokę."""
     model.train()
     total_loss = 0
     predictions = []
     targets = []
 
     for batch in train_loader:
-        # Hybrid: (graph, descriptors, labels)
         if model_type in ['Hybrid', 'hybrid']:
             batch_graphs, batch_descs, labels = batch
             batch_graphs = batch_graphs.to(device)
@@ -67,7 +69,6 @@ def train_epoch(model, train_loader, optimizer, criterion, device, model_type):
             optimizer.zero_grad()
             outputs = model(batch_graphs, batch_descs)
 
-        # Descriptor only: (graph, descriptors, labels) - pomijamy graf
         elif model_type in ['DescriptorOnly', 'Descriptor', 'descriptor']:
             _, batch_descs, labels = batch
             batch_descs = batch_descs.to(device)
@@ -76,7 +77,6 @@ def train_epoch(model, train_loader, optimizer, criterion, device, model_type):
             optimizer.zero_grad()
             outputs = model(batch_descs)
 
-        # Graph only (GCN, GIN, GraphDenseNet)
         else:
             batch_graphs, labels = batch
             batch_graphs = batch_graphs.to(device)
@@ -100,7 +100,6 @@ def train_epoch(model, train_loader, optimizer, criterion, device, model_type):
 
 
 def evaluate(model, loader, criterion, device, model_type):
-    """Ocena modelu na zbiorze danych."""
     model.eval()
     total_loss = 0
     predictions = []
@@ -121,7 +120,7 @@ def evaluate(model, loader, criterion, device, model_type):
                 labels = labels.to(device)
                 outputs = model(batch_descs)
 
-            else:  # Graph only
+            else:
                 batch_graphs, labels = batch
                 batch_graphs = batch_graphs.to(device)
                 labels = labels.to(device)
@@ -142,13 +141,14 @@ def evaluate(model, loader, criterion, device, model_type):
 
 
 def get_model(model_type, descriptor_dim=None):
-    """Zwraca odpowiedni model na podstawie typu."""
     if model_type in ['GCN', 'gcn']:
         return GCNModel()
     elif model_type in ['GIN', 'gin']:
         return GINModel()
     elif model_type in ['GraphDenseNet', 'Graph', 'graph']:
         return GraphDenseNetModel()
+    elif model_type in ['ResidualGCN', 'residualgcn']:
+        return ResidualGCNModel()
     elif model_type in ['DescriptorOnly', 'Descriptor', 'descriptor']:
         return DescriptorOnlyModel(descriptor_dim=descriptor_dim)
     elif model_type in ['Hybrid', 'hybrid']:
@@ -159,11 +159,8 @@ def get_model(model_type, descriptor_dim=None):
 
 
 def train(args):
-    """
-    Główna funkcja trenowania.
-    """
-    # Złóż nazwę folderu
-    folder_name = f"{args.model}_{args.target_col}_E{args.epochs}_LR{args.lr}_BS{args.bs}"
+    set_seed(args.seed)
+    folder_name = f"{args.model}_{args.target_col}_E{args.epochs}_LR{args.lr}_BS{args.bs}_SEED{args.seed}"
 
     save_dir = os.path.join('results', folder_name)
     os.makedirs(save_dir, exist_ok=True)
@@ -179,15 +176,15 @@ def train(args):
     print(f"  Learning rate: {args.lr}")
     print(f"  Batch size: {args.bs}")
     print(f"  Early stopping: {args.es}")
+    print(f"  Seed: {args.seed}")
     print(f"  Folder wyników: {save_dir}")
 
-    # Przygotowanie danych - deskryptory tylko dla modeli, które ich potrzebują
     use_descriptors = args.model in ['DescriptorOnly', 'Descriptor', 'descriptor',
                                      'Hybrid', 'hybrid']
 
     train_loader, val_loader, test_loader = create_dataloaders(
         args.csv, target_col=args.target_col, batch_size=args.bs,
-        use_descriptors=use_descriptors
+        use_descriptors=use_descriptors, random_state=args.seed, save_dir=save_dir
     )
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -216,12 +213,10 @@ def train(args):
     }
 
     for epoch in range(args.epochs):
-        # Trening
         train_loss, train_r2 = train_epoch(
             model, train_loader, optimizer, criterion, device, args.model
         )
 
-        # Walidacja
         val_loss, val_rmse, val_mae, val_r2, _, _ = evaluate(
             model, val_loader, criterion, device, args.model
         )
@@ -252,7 +247,6 @@ def train(args):
             print(f"\nEarly stopping w epoce {epoch+1}")
             break
 
-    # Ewaluacja na zbiorze testowym
     print("\n" + "="*60)
     print("Ewaluacja na zbiorze testowym")
     print("="*60)
@@ -268,7 +262,6 @@ def train(args):
     print(f"  MAE:  {test_mae:.4f}")
     print(f"  R²:   {test_r2:.4f}")
 
-    # Zapisz wyniki
     results_df = pd.DataFrame({
         'true': test_true,
         'predicted': test_pred
@@ -279,10 +272,10 @@ def train(args):
     history_df.to_csv(os.path.join(
         save_dir, 'training_history.csv'), index=False)
 
-    # Zapisz metryki
     metrics_df = pd.DataFrame([{
         'model': args.model,
         'target_col': args.target_col,
+        'seed': args.seed,
         'epochs': args.epochs,
         'learning_rate': args.lr,
         'batch_size': args.bs,
@@ -295,9 +288,9 @@ def train(args):
     }])
     metrics_df.to_csv(os.path.join(save_dir, 'metrics.csv'), index=False)
 
-    # Narysuj wykresy
     plotter = PlotGenerator(save_dir=save_dir)
-    plotter.plot_learning_curves(history, args.model, args.target_col)
+    plotter.plot_learning_curves(
+        history, args.model, args.target_col, args.epochs, args.seed)
     plotter.plot_predictions_vs_true(
         test_true, test_pred, args.model, args.target_col)
     plotter.plot_residuals(test_true, test_pred, args.model, args.target_col)
@@ -310,12 +303,8 @@ def train(args):
 
 
 def train_all_models(args):
-    """
-    Porównuje wszystkie modele z tymi samymi parametrami.
-    Rysuje zaawansowane wykresy porównawcze.
-    """
     models_to_test = ['GCN', 'GIN',
-                      'GraphDenseNet', 'DescriptorOnly', 'Hybrid']
+                      'GraphDenseNet', 'DescriptorOnly', 'Hybrid', 'ResidualGCN']
     results = {}
     histories = {}
 
@@ -342,7 +331,8 @@ def train_all_models(args):
             epochs=args.epochs,
             lr=args.lr,
             bs=args.bs,
-            es=args.es
+            es=args.es,
+            seed=args.seed
         )
         _, history, metrics = train(model_args)
         results[model_type] = {
@@ -359,14 +349,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Trenowanie modeli do predykcji Kp/Kpuu')
 
-    # Argumenty dla standardowego treningu
+    parser.add_argument('--seed', type=int, default=None,
+                        help='Seed dla podziału danych i reprodukowalności')
     parser.add_argument('--csv', type=str, default='data/raw/train_kpuu_log.csv',
                         help='Ścieżka do pliku CSV z danymi')
     parser.add_argument('--target_col', type=str, default='pKpuu',
                         choices=['Kpuu', 'Kp', 'pKpuu', 'pKp'],
                         help='Kolumna do przewidzenia')
-    parser.add_argument('--model', type=str, default='GraphDenseNet',
-                        choices=['GCN', 'GIN', 'GraphDenseNet',
+    parser.add_argument('--model', type=str, default='ResidualGCN',
+                        choices=['GCN', 'GIN', 'ResidualGCN', 'GraphDenseNet',
                                  'DescriptorOnly', 'Hybrid', 'All'],
                         help='Typ modelu')
     parser.add_argument('--epochs', type=int, default=200,
@@ -380,7 +371,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Uruchom odpowiednią funkcję
     if args.model == 'All':
         train_all_models(args)
     else:
@@ -388,14 +378,14 @@ if __name__ == "__main__":
 
 """
 Args:
---model GCN/GIN/GraphDenseNet/DescriptorOnly/Hybrid/All
+--model GCN/GIN/ResidualGCN/GraphDenseNet/DescriptorOnly/Hybrid/All
 --csv data/raw/train_kpuu.csv
 --target_col pKpuu
 --epochs 200
 --lr (learning rate) 0.0005
 --bs (batch size) 32
 --es (early stopping) 50
+--seed 42
 
-train.py --model GraphDenseNet --csv data/raw/train_kpuu_log.csv --target_col pKpuu --epochs 200 --lr 0.0005 --bs 32 --es 50
-
+train.py --model ResidualGCN --csv data/raw/train_kp_log.csv --target_col pKp --epochs 200 --lr 0.0005 --bs 32 --es 50 --seed 42
 """

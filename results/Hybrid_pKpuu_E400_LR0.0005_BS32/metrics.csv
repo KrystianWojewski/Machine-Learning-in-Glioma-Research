@@ -1,2 +1,0 @@
-model,target_col,epochs,learning_rate,batch_size,early_stop,test_loss,test_rmse,test_mae,test_r2,best_epoch
-Hybrid,pKpuu,400,0.0005,32,200,0.30951935052871704,0.5567123113389677,0.4342090718448162,0.34245796328189027,9
