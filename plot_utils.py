@@ -41,11 +41,9 @@ class PlotGenerator:
 
         epochs = range(1, len(history['train_loss']) + 1)
 
-        # axes[0].set_xlim(0, max_epochs)
         axes[0].set_ylim(0, 1)
         axes[1].set_ylim(0, 1)
 
-        # Strata (MSE)
         axes[0].plot(epochs, history['train_loss'],
                      'b-', label='Trening', linewidth=2)
         axes[0].plot(epochs, history['val_loss'], 'r-',
@@ -57,14 +55,12 @@ class PlotGenerator:
         axes[0].legend(fontsize=10)
         axes[0].grid(True, alpha=0.3)
 
-        # Najlepsza epoka
         best_epoch = np.argmin(history['val_loss']) + 1
         best_val_loss = min(history['val_loss'])
         axes[0].axvline(x=best_epoch, color='g', linestyle='--', alpha=0.7,
                         label=f'Najlepszy model (epoka {best_epoch})')
         axes[0].legend(fontsize=10)
 
-        # R²
         axes[1].plot(epochs, history['train_r2'], 'b-',
                      label='Trening', linewidth=2)
         axes[1].plot(epochs, history['val_r2'], 'r-',
@@ -77,13 +73,11 @@ class PlotGenerator:
         axes[1].grid(True, alpha=0.3)
         axes[1].axhline(y=0, color='gray', linestyle='-', alpha=0.3)
 
-        # Najlepsze R²
         best_val_r2 = max(history['val_r2'])
         axes[1].axhline(y=best_val_r2, color='g', linestyle='--', alpha=0.5,
                         label=f'Najlepsze R² = {best_val_r2:.4f}')
         axes[1].legend(fontsize=10)
 
-        # plt.tight_layout()
         self._save_plot(f'{model_name}_{target_col}_learning_curves.png')
 
         return fig, axes
@@ -298,23 +292,18 @@ class PlotGenerator:
             print("Nie można wyświetlić ważności atomów - brak obiektu mol")
             return None, None
 
-        # Przygotuj dane
         n_atoms = len(importance)
         atom_indices = list(range(n_atoms))
         atom_symbols = [mol.GetAtomWithIdx(
             i).GetSymbol() for i in range(n_atoms)]
 
-        # Kolory: zielony = dodatnia ważność (zwiększa przenikanie),
-        #        czerwony = ujemna ważność (zmniejsza przenikanie)
         colors = ['green' if imp > 0 else 'red' for imp in importance]
 
         fig, ax = plt.subplots(figsize=(14, 6))
 
-        # Wykres słupkowy
         bars = ax.bar(atom_indices, importance, color=colors,
                       alpha=0.7, edgecolor='black')
 
-        # Dodaj etykiety symboli atomów nad słupkami
         for i, (bar, symbol, imp) in enumerate(zip(bars, atom_symbols, importance)):
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + (0.02 if imp > 0 else -0.05),
                     symbol, ha='center', va='bottom' if imp > 0 else 'top',
@@ -327,7 +316,6 @@ class PlotGenerator:
             f'Ważność atomów dla cząsteczki\n{smiles[:60]}...', fontsize=12)
         ax.grid(True, alpha=0.3, axis='y')
 
-        # Dodaj adnotację o kolorach
         ax.text(0.98, 0.02, 'Kolor: zielony = zwiększa przenikanie\n       czerwony = zmniejsza przenikanie',
                 transform=ax.transAxes, fontsize=9, verticalalignment='bottom',
                 horizontalalignment='right', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
@@ -342,8 +330,6 @@ class PlotGenerator:
 
     def plot_atom_importance_comparison(self, results, save_name='atom_importance_comparison'):
         """
-        Rysuje porównanie ważności atomów dla wielu cząsteczek.
-
         Args:
             results: lista słowników z kluczami 'smiles', 'mol', 'importance', 'chembl_id', 'true_pkpuu', 'pred_pkpuu'
             save_name: nazwa pliku do zapisu
@@ -353,7 +339,6 @@ class PlotGenerator:
             print("Brak danych do porównania")
             return None, None
 
-        # Wybierz maksymalną liczbę atomów dla spójnej siatki
         max_atoms = max([len(r['importance']) for r in results])
 
         fig, axes = plt.subplots(n_molecules, 1, figsize=(16, 3 * n_molecules))
@@ -497,14 +482,12 @@ class PlotGenerator:
 
 
 def quick_plot_learning_curves(history, model_name, target_col, save_path=None):
-    """Szybka funkcja do wygenerowania krzywych uczenia się."""
     plotter = PlotGenerator(save_dir=os.path.dirname(
         save_path) if save_path else None)
     return plotter.plot_learning_curves(history, model_name, target_col)
 
 
 def quick_plot_predictions(y_true, y_pred, model_name, target_col, save_path=None):
-    """Szybka funkcja do wygenerowania wykresu przewidywań."""
     plotter = PlotGenerator(save_dir=os.path.dirname(
         save_path) if save_path else None)
     return plotter.plot_predictions_vs_true(y_true, y_pred, model_name, target_col)

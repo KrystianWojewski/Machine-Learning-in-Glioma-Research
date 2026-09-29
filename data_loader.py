@@ -22,10 +22,8 @@ class PropertyDataset(Dataset):
         self.use_descriptors = use_descriptors
         self.transform = transform
 
-        # Usuń wiersze z brakującymi wartościami
         self.df = self.df.dropna(subset=[target_col])
 
-        # Konwertuj SMILES na grafy i deskryptory
         print(f"Ładowanie {len(self.df)} cząsteczek...")
         self.graphs = []
         self.descriptors = []
@@ -39,7 +37,6 @@ class PropertyDataset(Dataset):
             graph_dict = smiles_to_graph(smiles)
 
             if graph_dict is not None:
-                # Graf
                 data = Data(
                     x=graph_dict['x'],
                     edge_index=graph_dict['edge_index'],
@@ -47,13 +44,11 @@ class PropertyDataset(Dataset):
                 )
                 self.graphs.append(data)
 
-                # Deskryptory
                 if use_descriptors:
                     desc = calculate_descriptors(smiles)
                     if desc is not None:
                         self.descriptors.append(desc)
                     else:
-                        # Jeśli deskryptory się nie udały, używamy zer
                         self.descriptors.append(
                             np.zeros(len(get_descriptor_names())))
 
@@ -101,15 +96,12 @@ def create_dataloaders(csv_file, target_col='Kpuu', batch_size=32,
     dataset = PropertyDataset(csv_file, target_col,
                               use_descriptors=use_descriptors)
 
-    # Indeksy
     indices = list(range(len(dataset)))
 
-    # Podział na train+val i test
     train_val_idx, test_idx = train_test_split(
         indices, test_size=test_ratio, random_state=random_state
     )
 
-    # Podział train+val na train i val
     val_ratio_adjusted = val_ratio / (train_ratio + val_ratio)
     train_idx, val_idx = train_test_split(
         train_val_idx, test_size=val_ratio_adjusted, random_state=random_state
@@ -123,12 +115,10 @@ def create_dataloaders(csv_file, target_col='Kpuu', batch_size=32,
     val_df.to_csv(os.path.join(save_dir, 'val_data.csv'), index=False)
     test_df.to_csv(os.path.join(save_dir, 'test_data.csv'), index=False)
 
-    # Tworzenie subsetów
     train_dataset = torch.utils.data.Subset(dataset, train_idx)
     val_dataset = torch.utils.data.Subset(dataset, val_idx)
     test_dataset = torch.utils.data.Subset(dataset, test_idx)
 
-    # DataLoadery
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True,
         collate_fn=collate_fn, num_workers=0

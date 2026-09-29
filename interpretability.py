@@ -11,10 +11,6 @@ import os
 from models import get_model
 from graph_utils import smiles_to_graph
 
-# ============================================================================
-# FUNKCJE (integrated_gradients, plot_*, itd.)
-# ============================================================================
-
 
 def integrated_gradients(model, data, target_idx=0, steps=50):
     """
@@ -379,7 +375,6 @@ def plot_best_vs_worst_penetrator(results, save_path=None):
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
-    # Najlepszy przenikacz - wykres słupkowy
     importance_best = best['importance']
     mol_best = Chem.MolFromSmiles(best['smiles'])
 
@@ -404,7 +399,6 @@ def plot_best_vs_worst_penetrator(results, save_path=None):
         f"NAJLEPSZY PRZENIKACZ\n{best['chembl_id']}\n{best.get('target_col', 'value')} = {best['true']:.3f}", fontsize=10)
     axes[0, 0].grid(True, alpha=0.3, axis='x')
 
-    # Najlepszy przenikacz - wzór chemiczny
     highlight_atoms_best = [int(i) for i in top_indices_best[:5]]
     img_best = Draw.MolToImage(mol_best, size=(300, 300),
                                highlightAtoms=highlight_atoms_best,
@@ -414,7 +408,6 @@ def plot_best_vs_worst_penetrator(results, save_path=None):
     axes[0, 1].set_title(
         "Struktura cząsteczki\n(czerwone = najważniejsze atomy)", fontsize=10)
 
-    # Najgorszy przenikacz - wykres słupkowy
     importance_worst = worst['importance']
     mol_worst = Chem.MolFromSmiles(worst['smiles'])
 
@@ -438,7 +431,6 @@ def plot_best_vs_worst_penetrator(results, save_path=None):
         f"NAJGORSZY PRZENIKACZ\n{worst['chembl_id']}\n{worst.get('target_col', 'value')} = {worst['true']:.3f}", fontsize=10)
     axes[1, 0].grid(True, alpha=0.3, axis='x')
 
-    # Najgorszy przenikacz - wzór chemiczny
     highlight_atoms_worst = [int(i) for i in top_indices_worst[:5]]
     img_worst = Draw.MolToImage(mol_worst, size=(300, 300),
                                 highlightAtoms=highlight_atoms_worst,

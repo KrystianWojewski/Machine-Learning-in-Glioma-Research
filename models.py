@@ -168,34 +168,28 @@ class ResidualGCNModel(nn.Module):
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
 
-        # Warstwa 1
         x1 = self.conv1(x, edge_index)
         x1 = self.bn1(x1)
         x1 = F.relu(x1)
         x1 = F.dropout(x1, p=self.dropout, training=self.training)
 
-        # Warstwa 2 (skip connection)
         x2 = self.conv2(x1, edge_index)
         x2 = self.bn2(x2)
-        x2 = F.relu(x2 + x1)  # Dodajemy wejście (skip connection)
+        x2 = F.relu(x2 + x1)
         x2 = F.dropout(x2, p=self.dropout, training=self.training)
 
-        # Warstwa 3 (skip connection)
         x3 = self.conv3(x2, edge_index)
         x3 = self.bn3(x3)
-        x3 = F.relu(x3 + x2)  # Dodajemy wejście
+        x3 = F.relu(x3 + x2)
         x3 = F.dropout(x3, p=self.dropout, training=self.training)
 
-        # Warstwa 4 (skip connection)
         x4 = self.conv4(x3, edge_index)
         x4 = self.bn4(x4)
-        x4 = F.relu(x4 + x3)  # Dodajemy wejście
+        x4 = F.relu(x4 + x3)
         x4 = F.dropout(x4, p=self.dropout, training=self.training)
 
-        # Global pooling
         x = global_mean_pool(x4, batch)
 
-        # Regresja
         x = self.regressor(x)
 
         return x.view(-1)
@@ -221,7 +215,6 @@ class GraphConvBn(nn.Module):
 class DenseLayer(nn.Module):
     def __init__(self, in_channels, growth_rate=32, bn_size=4):
         super().__init__()
-        # Najpierw rozszerzamy (bn_size * growth_rate), potem zmniejszamy do growth_rate
         self.conv1 = GraphConvBn(in_channels, bn_size * growth_rate)
         self.conv2 = GraphConvBn(bn_size * growth_rate, growth_rate)
 
@@ -229,7 +222,6 @@ class DenseLayer(nn.Module):
         identity = x
         x = self.conv1(x, edge_index)
         x = self.conv2(x, edge_index)
-        # CONCAT (stackowanie) - to jest kluczowe dla DenseNet!
         x = torch.cat([identity, x], dim=1)
         return x
 
@@ -243,7 +235,7 @@ class DenseBlock(nn.Module):
         for i in range(num_layers):
             layer = DenseLayer(current_channels, growth_rate, bn_size)
             self.layers.append(layer)
-            current_channels += growth_rate  # po każdej warstwie rośnie liczba cech
+            current_channels += growth_rate
 
     def forward(self, x, edge_index):
         for layer in self.layers:
@@ -407,10 +399,10 @@ class HybridModel(nn.Module):
         x = F.relu(x)
 
         graph_embedding = global_mean_pool(
-            x, batch)  # [batch_size, hidden_dim]
+            x, batch)
 
         desc_embedding = self.desc_encoder(
-            descriptors)  # [batch_size, hidden_dim/2]
+            descriptors)
 
         combined = torch.cat([graph_embedding, desc_embedding], dim=1)
 

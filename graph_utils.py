@@ -240,7 +240,6 @@ def get_bond_features(bond):
     # 5. Czy wiązanie jest skoniugowane (1)
     features.append(1 if bond.GetIsConjugated() else 0)
 
-    # Dopełnij do 12
     while len(features) < 12:
         features.append(0.0)
 
